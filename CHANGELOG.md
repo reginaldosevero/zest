@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.1 — 2026-10-22
+
+### Novo
+- `--with-omz`: instala o Oh My Zsh automaticamente (unattended, sem root, sem trocar o shell do usuário) + plugins + lista `plugins=()`
+- Modo **standalone**: sem Oh My Zsh, os plugins são clonados em `~/.config/zest/plugins` e carregados pelo novo módulo `10-plugins` — funciona com zsh puro, zinit, antidote ou qualquer framework
+- Seção de créditos no README (Oh My Zsh, zsh-users, hlissner e todos os autores das ferramentas)
+
+### Corrigido
+- O instalador do Oh My Zsh herdava a variável `ZSH` do shell do usuário e tentava instalar no lugar errado — agora o destino é fixado em `~/.oh-my-zsh`
+- Ordem de instalação: o Oh My Zsh agora é instalado ANTES do bloco do Zest entrar no `.zshrc`, garantindo o template com `plugins=()`
+
 ## 0.1.0 — 2026-10-22
 
 Primeira versão, extraída de um `.zshrc` real que sobreviveu a meses de uso e correção de bugs.

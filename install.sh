@@ -7,7 +7,13 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEST="$HOME/.config/zest"
 ZSHRC="$HOME/.zshrc"
 WITH_PLUGINS=0
-[[ "${1:-}" == "--with-plugins" ]] && WITH_PLUGINS=1
+WITH_OMZ=0
+for arg in "$@"; do
+  case $arg in
+    --with-plugins) WITH_PLUGINS=1 ;;
+    --with-omz)     WITH_OMZ=1; WITH_PLUGINS=1 ;;   # instala o Oh My Zsh se faltar
+  esac
+done
 
 echo "🌶️  Zest — instalação"
 echo "═══════════════════════════════════════"
@@ -24,7 +30,19 @@ if ! command -v zsh >/dev/null 2>&1; then
 fi
 echo "✓ zsh encontrado: $(zsh --version)"
 
-# 2) copia módulos e lib (idempotente)
+# 2) Oh My Zsh: instala ANTES de mexer no .zshrc (para ele criar o template com plugins=())
+# Créditos: Oh My Zsh é projeto de Robby Russell e comunidade — https://ohmyzsh.com (MIT)
+if [[ $WITH_OMZ == 1 && ! -d "$HOME/.oh-my-zsh" ]]; then
+  echo "· Oh My Zsh não encontrado — instalando (sem root, sem trocar seu shell)…"
+  # ZSH fixado: o instalador não pode herdar um ZSH de outro shell do usuário
+  if ZSH="$HOME/.oh-my-zsh" sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" -- --unattended --keep-zshrc >/dev/null 2>&1; then
+    echo "✓ Oh My Zsh instalado em ~/.oh-my-zsh"
+  else
+    echo "⚠️  download do Oh My Zsh falhou — seguindo em modo standalone (plugins carregados pelo módulo 10)"
+  fi
+fi
+
+# 3) copia módulos e lib (idempotente)
 mkdir -p "$DEST"
 cp -r "$REPO_DIR/modules" "$REPO_DIR/lib" "$DEST/" 2>/dev/null || true
 mkdir -p "$DEST/modules" "$DEST/lib"
@@ -35,14 +53,14 @@ mkdir -p "$HOME/.local/bin"
 ln -sf "$REPO_DIR/bin/zest" "$HOME/.local/bin/zest"
 echo "✓ módulos em $DEST"
 
-# 3) backup do .zshrc (uma vez por dia, sem acumular)
+# 4) backup do .zshrc (uma vez por dia, sem acumular)
 if [[ -f "$ZSHRC" ]]; then
   BAK="$ZSHRC.zest-bak-$(date +%Y%m%d)"
   [[ -f "$BAK" ]] || cp "$ZSHRC" "$BAK"
   echo "✓ backup: $BAK"
 fi
 
-# 4) bloco marcado no .zshrc (nunca duplica)
+# 5) bloco marcado no .zshrc (nunca duplica)
 if grep -q ">>> zest >>>" "$ZSHRC" 2>/dev/null; then
   echo "✓ .zshrc já carrega o Zest (nada duplicado)"
 else
@@ -59,18 +77,20 @@ EOF
   echo "✓ bloco acrescentado ao final do $ZSHRC (nada do que já existia foi alterado)"
 fi
 
-# 5) plugins do Oh My Zsh (opcional, só com --with-plugins)
+# 6) plugins do zsh (opcional, com --with-plugins)
 if [[ $WITH_PLUGINS == 1 ]]; then
+  declare -A REPOS=(
+    [zsh-autosuggestions]="https://github.com/zsh-users/zsh-autosuggestions"
+    [zsh-syntax-highlighting]="https://github.com/zsh-users/zsh-syntax-highlighting"
+    [zsh-completions]="https://github.com/zsh-users/zsh-completions"
+    [zsh-history-substring-search]="https://github.com/zsh-users/zsh-history-substring-search"
+    [zsh-autopair]="https://github.com/hlissner/zsh-autopair"
+  )
+
+  # 6a) Com Oh My Zsh: plugins em custom/plugins + lista plugins=()
   if [[ -d "$HOME/.oh-my-zsh" ]]; then
     CUST="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins"
     mkdir -p "$CUST"
-    declare -A REPOS=(
-      [zsh-autosuggestions]="https://github.com/zsh-users/zsh-autosuggestions"
-      [zsh-syntax-highlighting]="https://github.com/zsh-users/zsh-syntax-highlighting"
-      [zsh-completions]="https://github.com/zsh-users/zsh-completions"
-      [zsh-history-substring-search]="https://github.com/zsh-users/zsh-history-substring-search"
-      [zsh-autopair]="https://github.com/hlissner/zsh-autopair"
-    )
     for p in "${!REPOS[@]}"; do
       if [[ ! -d "$CUST/$p" ]]; then
         git clone --depth 1 -q "${REPOS[$p]}" "$CUST/$p" && echo "✓ plugin clonado: $p"
@@ -94,8 +114,15 @@ if add:
 else:
     print("✓ todos os plugins já estão na lista")
 PYEOF
+  # 6c) Sem Oh My Zsh: plugins em ~/.config/zest/plugins (módulo 10 carrega)
   else
-    echo "· Oh My Zsh não encontrado — plugins pulados (os módulos funcionam sem ele)"
+    PDIR="$DEST/plugins"
+    mkdir -p "$PDIR"
+    for p in "${!REPOS[@]}"; do
+      if [[ ! -d "$PDIR/$p" ]]; then
+        git clone --depth 1 -q "${REPOS[$p]}" "$PDIR/$p" && echo "✓ plugin standalone: $p"
+      fi
+    done
   fi
 fi
 

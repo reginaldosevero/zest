@@ -26,11 +26,19 @@ O terminal Linux padrão é cru e as mensagens de erro parecem latim. O Zest acr
 
 ## 📦 Instalação
 
+Escolha o seu sabor — os módulos do Zest funcionam **com ou sem framework**:
+
+| Você tem/quer | Comando |
+|---|---|
+| Zest puro (zsh puro, sem plugins extra) | `./install.sh` |
+| Zest + plugins standalone (sem Oh My Zsh) | `./install.sh --with-plugins` |
+| Zest + Oh My Zsh + plugins (instala o omz se faltar) | `./install.sh --with-omz` |
+| Já usa zinit, antidote ou outro framework? | `./install.sh --with-plugins` — os plugins são scripts soltos, carregam em qualquer um |
+
 ```bash
 git clone https://github.com/reginaldosevero/zest ~/projetos/zest
 cd ~/projetos/zest
-./install.sh                # essencial
-./install.sh --with-plugins # + plugins do Oh My Zsh (se você o tiver)
+./install.sh --with-omz   # ou o sabor que preferir da tabela acima
 ```
 
 Depois:
@@ -78,3 +86,16 @@ zest/
 ## 📄 Licença
 
 MIT — veja [LICENSE](LICENSE).
+
+## 🙏 Créditos
+
+O Zest não reinventa a roda — ele é o maestro de uma orquestra de projetos brilhantes:
+
+- **[Oh My Zsh](https://github.com/ohmyzsh/ohmyzsh)** (MIT) — de Robby Russell e da comunidade. Inspiração direta dos aliases de git do Zest e do ecossistema de plugins. Opcional: o Zest funciona com ele ou sem ele.
+- **Plugins zsh** (baixados pelo instalador, cada um com sua licença):
+  - [zsh-autosuggestions](https://github.com/zsh-users/zsh-autosuggestions) · [zsh-syntax-highlighting](https://github.com/zsh-users/zsh-syntax-highlighting) · [zsh-completions](https://github.com/zsh-users/zsh-completions) · [zsh-history-substring-search](https://github.com/zsh-users/zsh-history-substring-search) — time **zsh-users**
+  - [zsh-autopair](https://github.com/hlissner/zsh-autopair) — hlissner
+- **Ferramentas CLI** que o `zest add` baixa (apenas automatiza o download; cada uma mantém sua licença):
+  - fzf (junegunn) · ripgrep (BurntSushi) · fd e bat (sharkdp) · eza (eza-community) · delta (dandavison) · lazygit (jesseduffield) · duf (muesli) · jq (jqlang) · yq (mikefarah) · direnv (direnv) · tealdeer (tealdeer-rs) · zoxide (ajeetdsouza) · atuin (ellie) · mise (jdx) · thefuck (nvbn)
+
+Muito obrigado a todas essas pessoas. 🌶️
