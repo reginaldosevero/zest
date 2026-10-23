@@ -18,15 +18,46 @@ done
 echo "🌶️  Zest — instalação"
 echo "═══════════════════════════════════════"
 
-# 1) zsh presente?
-if ! command -v zsh >/dev/null 2>&1; then
-  echo "❌ zsh não encontrado. Instale com um destes (precisa de sudo):"
-  echo "   Debian/Ubuntu/Mint : sudo apt install zsh"
-  echo "   Fedora             : sudo dnf install zsh"
-  echo "   Arch               : sudo pacman -S zsh"
-  echo "   openSUSE           : sudo zypper install zsh"
-  echo "   Alpine             : sudo apk add zsh"
-  exit 1
+# 1) dependências — o Zest instala SOZINHO o que falta (sudo, ou su no Debian cru)
+NEED=()
+command -v zsh >/dev/null 2>&1 || NEED+=(zsh)
+command -v git >/dev/null 2>&1 || NEED+=(git)
+command -v curl >/dev/null 2>&1 || NEED+=(curl)
+if [[ $WITH_PLUGINS == 1 && ! -d "$HOME/.oh-my-zsh" ]]; then
+  command -v python3 >/dev/null 2>&1 || NEED+=(python3)
+fi
+
+if (( ${#NEED[@]} )); then
+  PM=""; PM_INSTALL=""
+  if   command -v apt-get >/dev/null 2>&1; then PM="apt";    PM_INSTALL="apt-get install -y"
+  elif command -v dnf     >/dev/null 2>&1; then PM="dnf";    PM_INSTALL="dnf install -y"
+  elif command -v pacman  >/dev/null 2>&1; then PM="pacman"; PM_INSTALL="pacman -Sy --noconfirm"
+  elif command -v zypper  >/dev/null 2>&1; then PM="zypper"; PM_INSTALL="zypper install -y"
+  elif command -v apk     >/dev/null 2>&1; then PM="apk";    PM_INSTALL="apk add"
+  fi
+
+  if [[ -z "$PM" ]]; then
+    echo "❌ Faltam: ${NEED[*]} — e não encontrei apt/dnf/pacman/zypper/apk para instalá-los."
+    echo "   Instale manualmente e rode este instalador de novo."
+    exit 1
+  fi
+
+  echo "📦 Faltam dependências: ${NEED[*]}"
+  echo "   Instalando com $PM — pode pedir sua senha (sudo) ou a do root (su)…"
+  if [[ "$PM" == "apt" ]]; then
+    if command -v sudo >/dev/null 2>&1; then sudo apt-get update -q || true
+    else su -c 'apt-get update -q' || true; fi
+  fi
+  if command -v sudo >/dev/null 2>&1 && sudo $PM_INSTALL "${NEED[@]}"; then
+    echo "✓ dependências instaladas (via sudo)"
+  elif su -c "$PM_INSTALL ${NEED[*]}"; then
+    echo "✓ dependências instaladas (via su)"
+  else
+    echo "❌ Não consegui instalar automaticamente. Faça manualmente e rode de novo:"
+    echo "   sudo $PM_INSTALL ${NEED[*]}"
+    echo "   ou:  su -c '$PM_INSTALL ${NEED[*]}'"
+    exit 1
+  fi
 fi
 echo "✓ zsh encontrado: $(zsh --version)"
 
@@ -50,7 +81,8 @@ cp "$REPO_DIR"/modules/*.zsh "$DEST/modules/"
 [[ -d "$REPO_DIR/lib" ]] && cp -r "$REPO_DIR"/lib/* "$DEST/lib/" 2>/dev/null || true
 chmod +x "$REPO_DIR/bin/zest"
 mkdir -p "$HOME/.local/bin"
-ln -sf "$REPO_DIR/bin/zest" "$HOME/.local/bin/zest"
+cp "$REPO_DIR/bin/zest" "$HOME/.local/bin/zest"   # cópia (não symlink): sobrevive se a pasta do clone for apagada
+echo "✓ comando 'zest' em $HOME/.local/bin"
 echo "✓ módulos em $DEST"
 
 # 4) backup do .zshrc (uma vez por dia, sem acumular)

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.2 — 2026-10-23
+
+### Novo
+- **Instalação de dependências automática**: o instalador detecta zsh/git/curl/python3 faltando e instala sozinho via sudo (ou su/root em Debian sem sudo), suportando apt, dnf, pacman, zypper e apk
+- `lib/install-tool.sh` funciona também só com `wget` (sem curl)
+- README: caminho de instalação em máquina zerada via `wget` (tarball do GitHub)
+
+### Corrigido
+- O comando `zest` agora é **copiado** para `~/.local/bin` (antes era symlink e quebrava se a pasta do clone fosse apagada)
+- README: seção "Problemas comuns (VM / máquina nova)" — incluindo o aviso de que `tests/smoke.sh` é teste de desenvolvedor, não etapa de instalação
+
 ## 0.1.1 — 2026-10-22
 
 ### Novo

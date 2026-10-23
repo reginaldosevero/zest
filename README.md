@@ -26,6 +26,23 @@ O terminal Linux padrão é cru e as mensagens de erro parecem latim. O Zest acr
 
 ## 📦 Instalação
 
+**Você não precisa instalar dependências manualmente** — o instalador detecta o que falta (zsh, git, curl, python3) e instala sozinho, pedindo a senha do `sudo` (ou do `root` em Debian recém-instalado). Funciona com apt, dnf, pacman, zypper e apk.
+
+Numa máquina zerada, baixe e rode (o `wget` já vem no Debian):
+
+```bash
+wget -qO- https://github.com/reginaldosevero/zest/archive/refs/heads/master.tar.gz | tar xz
+cd zest-master && bash install.sh --with-omz
+```
+
+Ou, se já tem git:
+
+```bash
+git clone https://github.com/reginaldosevero/zest ~/projetos/zest
+cd ~/projetos/zest
+./install.sh --with-omz   # ou o sabor da tabela abaixo
+```
+
 Escolha o seu sabor — os módulos do Zest funcionam **com ou sem framework**:
 
 | Você tem/quer | Comando |
@@ -34,12 +51,6 @@ Escolha o seu sabor — os módulos do Zest funcionam **com ou sem framework**:
 | Zest + plugins standalone (sem Oh My Zsh) | `./install.sh --with-plugins` |
 | Zest + Oh My Zsh + plugins (instala o omz se faltar) | `./install.sh --with-omz` |
 | Já usa zinit, antidote ou outro framework? | `./install.sh --with-plugins` — os plugins são scripts soltos, carregam em qualquer um |
-
-```bash
-git clone https://github.com/reginaldosevero/zest ~/projetos/zest
-cd ~/projetos/zest
-./install.sh --with-omz   # ou o sabor que preferir da tabela acima
-```
 
 Depois:
 
@@ -86,6 +97,18 @@ zest/
 ## 📄 Licença
 
 MIT — veja [LICENSE](LICENSE).
+
+## 🆘 Problemas comuns (VM / máquina nova)
+
+| Sintoma | Causa | Solução |
+|---|---|---|
+| `command not found: git` ao clonar | git não instalado | `su -c 'apt install -y git'` |
+| O instalador diz `❌ Pré-requisitos faltando: zsh…` | zsh não instalado | `sudo apt install -y zsh` ou `su -c 'apt install -y zsh'` |
+| `zest add` falha em tudo | falta `curl`/`wget` | `sudo apt install -y curl` |
+| `./install.sh: Permission denied` | baixou o ZIP (perde o +x) | `bash install.sh --with-omz` |
+| `✗ sintaxe` no `tests/smoke.sh` | **não rode o smoke como usuário** — é teste de desenvolvimento e exige zsh instalado | apenas rode `./install.sh` |
+
+O instalador diagnostica tudo sozinho: se algo faltar, ele diz **o quê** e **o comando exato** (com `sudo` ou `su`) para resolver.
 
 ## 🙏 Créditos
 

@@ -14,8 +14,20 @@ case "$ARCH" in
   *) echo "❌ Arquitetura $ARCH não suportada ainda"; exit 1 ;;
 esac
 
-tag() { curl -s --max-time 20 "https://api.github.com/repos/$1/releases/latest" | grep -oP '"tag_name": "\K[^"]+'; }
-dl()  { curl -sL --max-time 300 -o "$T/$2" "$1"; }
+tag() {
+  if command -v curl >/dev/null 2>&1; then
+    curl -s --max-time 20 "https://api.github.com/repos/$1/releases/latest" | grep -oP '"tag_name": "\K[^"]+'
+  elif command -v wget >/dev/null 2>&1; then
+    wget -qO- -T 20 "https://api.github.com/repos/$1/releases/latest" | grep -oP '"tag_name": "\K[^"]+'
+  else
+    echo "❌ Preciso de curl ou wget para consultar versões"; return 1
+  fi
+}
+dl() {
+  if command -v curl >/dev/null 2>&1; then curl -sL --max-time 300 -o "$T/$2" "$1"
+  elif command -v wget >/dev/null 2>&1; then wget -q -T 300 -O "$T/$2" "$1"
+  else echo "❌ Instale curl ou wget: sudo apt install -y curl"; return 1; fi
+}
 
 # instala <binário-final> — receitas por ferramenta
 do_install() {
