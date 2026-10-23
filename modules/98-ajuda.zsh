@@ -79,6 +79,9 @@ ATALHOS DE TECLADO
   z nome-pasta         cd inteligente que aprende seus diretórios
   ESC ESC              repete o comando anterior com sudo
   fuck                 corrige typos: gti stauts → git status
+
+❤️  APOIE O PROJETO: ⚡ nados@speed.app · ₿ bc1q...du5z
+    (endereços completos para copiar estão no README do GitHub)
 FIM
 )
   if [[ -n "$1" ]]; then

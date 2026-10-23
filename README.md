@@ -98,6 +98,22 @@ zest/
 
 MIT — veja [LICENSE](LICENSE).
 
+## 💸 Apoie o Zest
+
+O Zest é gratuito e sempre será. Se ele te ajudou, uma doação espontânea é sempre bem-vinda:
+
+**⚡ Lightning Network** (instantâneo, taxas mínimas):
+```
+nados@speed.app
+```
+
+**₿ Bitcoin (on-chain)**:
+```
+bc1qyxsu8mhgujqau8e87lthgxg08eq0qw0426du5z
+```
+
+> EN: Zest is free forever. If it helped you, Bitcoin donations are welcome — Lightning or on-chain (addresses above). Obrigado / Thank you! 🌶️
+
 ## 🆘 Problemas comuns (VM / máquina nova)
 
 | Sintoma | Causa | Solução |
