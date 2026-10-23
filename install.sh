@@ -3,6 +3,12 @@
 # princípios: aditivo (nunca remove), idempotente (rodar 2x = igual), reversível
 set -euo pipefail
 
+# locale: VMs recém-instaladas podem vir sem UTF-8 (locale C) — os emojis dos
+# avisos e o python3 quebram. C.UTF-8 existe em qualquer distro moderna.
+if command locale -a 2>/dev/null | grep -qi '^C\.utf8$'; then
+  export LANG=C.UTF-8 LC_ALL=C.UTF-8
+fi
+
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEST="$HOME/.config/zest"
 ZSHRC="$HOME/.zshrc"
@@ -128,24 +134,27 @@ if [[ $WITH_PLUGINS == 1 ]]; then
         git clone --depth 1 -q "${REPOS[$p]}" "$CUST/$p" && echo "✓ plugin clonado: $p"
       fi
     done
-    python3 - "$ZSHRC" "${!REPOS[@]}" <<'PYEOF'
+    PYTHONIOENCODING=utf-8 python3 - "$ZSHRC" "${!REPOS[@]}" <<'PYEOF'
 import re, sys
 path, want = sys.argv[1], sys.argv[2:]
-src = open(path).read()
-m = re.search(r'plugins=\(([^)]*)\)', src)
+src = open(path, encoding="utf-8").read()
+# âncora no INÍCIO da linha: o template do omz tem um COMENTÁRIO de exemplo
+# ("# Example format: plugins=(rails ...)") que não pode casar — só o bloco real
+m = re.search(r'^plugins=\(([^)]*)\)', src, re.MULTILINE)
 if not m:
-    print("· nenhuma lista plugins=() encontrada — pulei")
+    print("OK: nenhuma lista plugins=() encontrada - plugins ficam no modo standalone")
     sys.exit(0)
 have = set(re.findall(r'[\w-]+', m.group(1)))
 add = [w for w in want if w not in have]
 if add:
-    bloco = m.group(0)[:-1] + '  ' + ' '.join(add) + '\n)'
+    bloco = m.group(0)[:-1] + ' ' + ' '.join(add) + ')'
     src = src[:m.start()] + bloco + src[m.end():]
-    open(path, 'w').write(src)
-    print("✓ plugins acrescentados à lista:", ' '.join(add))
+    open(path, "w", encoding="utf-8").write(src)
+    print("OK: plugins acrescentados a plugins=():", ' '.join(add))
 else:
-    print("✓ todos os plugins já estão na lista")
+    print("OK: todos os plugins ja estao na lista")
 PYEOF
+    grep -q '^plugins=.*zsh-autosuggestions' "$ZSHRC" && echo "✓ lista plugins=() verificada de verdade"
   # 6c) Sem Oh My Zsh: plugins em ~/.config/zest/plugins (módulo 10 carrega)
   else
     PDIR="$DEST/plugins"

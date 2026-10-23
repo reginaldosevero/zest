@@ -7,15 +7,15 @@ ZSHRC="$HOME/.zshrc"
 echo "🌶️  Zest — desinstalação"
 
 if [[ -f "$ZSHRC" ]] && grep -q ">>> zest >>>" "$ZSHRC"; then
-  python3 - "$ZSHRC" <<'PYEOF'
+  PYTHONIOENCODING=utf-8 python3 - "$ZSHRC" <<'PYEOF'
 import sys
 path = sys.argv[1]
-src = open(path).read()
+src = open(path, encoding="utf-8").read()
 if ">>> zest >>>" in src and "<<< zest <<<" in src:
     pre, _, rest = src.partition("# >>> zest >>>")
     _, _, pos = rest.partition("# <<< zest <<<")
-    open(path, "w").write(pre.rstrip("\n") + "\n" + pos.lstrip("\n"))
-    print("✓ bloco do Zest removido do .zshrc (mais nada foi tocado)")
+    open(path, "w", encoding="utf-8").write(pre.rstrip("\n") + "\n" + pos.lstrip("\n"))
+    print("OK: bloco do Zest removido do .zshrc (mais nada foi tocado)")
 PYEOF
 else
   echo "· .zshrc sem bloco do Zest"
