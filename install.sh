@@ -138,6 +138,9 @@ if [[ $WITH_PLUGINS == 1 ]]; then
 import re, sys
 path, want = sys.argv[1], sys.argv[2:]
 src = open(path, encoding="utf-8").read()
+# auto-cura: a v0.1.2 deixou um ')' órfão após o comentário de exemplo do omz
+# (quebrava bash E zsh). Só remove se a linha anterior for comentário.
+src = re.sub(r'(^#[^\n]*zsh-syntax-highlighting[^\n]*\n)\)\n', r'\1', src, flags=re.MULTILINE)
 # âncora no INÍCIO da linha: o template do omz tem um COMENTÁRIO de exemplo
 # ("# Example format: plugins=(rails ...)") que não pode casar — só o bloco real
 m = re.search(r'^plugins=\(([^)]*)\)', src, re.MULTILINE)
@@ -168,6 +171,28 @@ PYEOF
 fi
 
 echo "═══════════════════════════════════════"
+# 7) shell padrão — se ainda for bash (ou outro), o Zest nunca carrega num terminal novo
+CURSHELL=$(getent passwd "$(id -un)" 2>/dev/null | cut -d: -f7)
+[[ -z "$CURSHELL" ]] && CURSHELL="${SHELL:-/bin/bash}"
+ZSHBIN="$(command -v zsh)"
+if [[ "$CURSHELL" != "$ZSHBIN" ]]; then
+  echo ""
+  echo "⚠️  Seu shell padrão é $CURSHELL — os comandos do Zest SÓ funcionam no zsh!"
+  if [[ -t 0 ]]; then
+    read -r -p "   Trocar o shell padrão para zsh agora? [S/n] " TROCA
+    if [[ ! "$TROCA" =~ ^[nN] ]]; then
+      if chsh -s "$ZSHBIN" 2>/dev/null; then
+        echo "✓ Shell padrão alterado! Feche e abra o terminal para entrar no zsh."
+      else
+        echo "   O chsh pediu algo que não deu aqui — com root funciona direto:"
+        echo "     su -c \"chsh -s $ZSHBIN $(id -un)\""
+      fi
+    fi
+  else
+    echo "   Troque com:  chsh -s $ZSHBIN   (ou: su -c \"chsh -s $ZSHBIN $(id -un)\")"
+  fi
+fi
+
 echo "✅ Pronto! Ative com:  source ~/.zshrc   (ou abra um terminal novo)"
 echo "   Diagnóstico:        zest doctor"
 echo "   Ferramentas (opcional, sem root):  zest add fzf bat eza ripgrep fd delta lazygit duf jq yq direnv tldr zoxide atuin mise"

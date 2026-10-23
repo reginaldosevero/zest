@@ -4,7 +4,7 @@
 set -u
 ZEST_HOME="${ZEST_HOME:-$HOME/.config/zest}"
 ZEST_REPO="${ZEST_REPO:-$(cd "$(dirname "$0")/.." 2>/dev/null && pwd)}"
-VERSION="0.1.3"
+VERSION="0.1.4"
 
 usage() {
   cat <<'EOF'
