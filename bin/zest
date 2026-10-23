@@ -4,7 +4,7 @@
 set -u
 ZEST_HOME="${ZEST_HOME:-$HOME/.config/zest}"
 ZEST_REPO="${ZEST_REPO:-$(cd "$(dirname "$0")/.." 2>/dev/null && pwd)}"
-VERSION="0.1.4"
+VERSION="0.1.5"
 
 usage() {
   cat <<'EOF'
@@ -55,6 +55,18 @@ cmd_doctor() {
     zsh -n "$f" 2>/dev/null || { bad=1; echo "✗ erro em $f"; }
   done
   (( bad == 0 )) && echo "✓"
+
+  printf '%-28s' "· .zshrc (parse pelo zsh)"
+  if [[ -f "$HOME/.zshrc" ]] && command -v zsh >/dev/null 2>&1; then
+    if zsh -n "$HOME/.zshrc" 2>/dev/null; then
+      echo "✓"
+    else
+      echo "✗ erro de sintaxe — rode o instalador de novo (ele cura sozinho)"
+      ok=1
+    fi
+  else
+    echo "→ sem ~/.zshrc"
+  fi
 
   printf '%-28s' "· funções carregam"
   if ZEST_QUIET=1 zsh -c '
