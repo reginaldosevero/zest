@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+# zest — CLI do projeto Zest 🌶️
+# comandos: doctor · update · add <ferramenta> · version · help
+set -u
+ZEST_HOME="${ZEST_HOME:-$HOME/.config/zest}"
+ZEST_REPO="${ZEST_REPO:-$(cd "$(dirname "$0")/.." 2>/dev/null && pwd)}"
+VERSION="0.1.0"
+
+usage() {
+  cat <<'EOF'
+🌶️  Zest — o tempero do seu terminal
+
+USO: zest <comando>
+
+  doctor     Diagnostica o ambiente (ferramentas, módulos, sintaxe)
+  update     Atualiza tudo (12 gerenciadores; pula o que não existe)
+  add        Instala uma ferramenta sem root:  zest add fzf
+  version    Mostra a versão
+  help       Esta ajuda
+EOF
+}
+
+TOOLS="fzf zoxide atuin mise jq yq direnv eza rg fd bat delta lazygit duf tldr thefuck"
+
+cmd_doctor() {
+  local ok=0 warn=0 MODDIR
+  MODDIR="$ZEST_HOME"
+  [[ -d "$MODDIR/modules" ]] || MODDIR="$ZEST_REPO"   # instalado > repositório
+  echo "🌶️  Zest doctor — diagnóstico do ambiente"
+  echo "═══════════════════════════════════════"
+  echo "· módulos de: $MODDIR"
+
+  printf '%-28s' "· zsh"
+  if command -v zsh >/dev/null 2>&1; then
+    echo "✓ $(zsh --version | head -1)"
+  else
+    echo "✗ FALTANDO (essencial)"; ok=1
+  fi
+
+  printf '%-28s' "· Oh My Zsh"
+  [[ -d "$HOME/.oh-my-zsh" ]] && echo "✓" || { echo "→ não instalado (opcional, módulos funcionam sem)"; warn=$((warn+1)); }
+
+  for t in $TOOLS; do
+    printf '%-28s' "· $t"
+    if command -v "$t" >/dev/null 2>&1; then
+      echo "✓"
+    else
+      echo "→ não instalado (zest add $t)"; warn=$((warn+1))
+    fi
+  done
+
+  printf '%-28s' "· sintaxe dos módulos"
+  local bad=0 f
+  for f in "$MODDIR"/modules/*.zsh; do
+    zsh -n "$f" 2>/dev/null || { bad=1; echo "✗ erro em $f"; }
+  done
+  (( bad == 0 )) && echo "✓"
+
+  printf '%-28s' "· funções carregam"
+  if ZEST_QUIET=1 zsh -c '
+    for f in '"$MODDIR"'/modules/*.zsh(N); do source "$f"; done
+    for fn in sysinfo topmem topcpu note todo syncdir updateall portcheck backup_dir worldtime git; do
+      (( $+functions[$fn] )) || { echo "✗ faltando: $fn"; exit 1 }
+    done' 2>/dev/null; then
+    echo "✓"
+  else
+    echo "✗"; ok=1
+  fi
+
+  printf '%-28s' "· git (identidade p/ commits)"
+  if command git config --global user.name >/dev/null 2>&1; then
+    echo "✓ $(command git config --global user.name)"
+  else
+    echo "→ configure: git config --global user.name/user.email"; warn=$((warn+1))
+  fi
+
+  echo "═══════════════════════════════════════"
+  echo "Resumo: $(( $(wc -w <<<"$TOOLS") + 1 )) verificações · avisos: $warn"
+  (( ok == 0 )) && echo "✅ Base saudável!" || echo "❌ Problemas encontrados acima."
+}
+
+cmd_update() {
+  ZEST_QUIET=1 zsh -c '
+    for f in '"$ZEST_HOME"'/modules/*.zsh(N); do source "$f"; done
+    updateall'
+}
+
+cmd_add() {
+  [[ -f "$ZEST_HOME/lib/install-tool.sh" ]] || { echo "lib/install-tool.sh não encontrado"; exit 1; }
+  bash "$ZEST_HOME/lib/install-tool.sh" "$@"
+}
+
+case "${1:-help}" in
+  doctor)  cmd_doctor ;;
+  update)  cmd_update ;;
+  add)     shift; cmd_add "$@" ;;
+  version) echo "zest $VERSION" ;;
+  help|*)  usage ;;
+esac
