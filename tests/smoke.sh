@@ -29,7 +29,7 @@ if zsh -c '
             diskusage_dir ipinfo sysclean updateall \
             jsonfmt jsonmin json2yaml yaml2json countlines replace \
             portcheck download speedtest sslinfo backup_dir syncdir \
-            ts2date date2ts worldtime procs git; do
+            ts2date date2ts worldtime procs git ajuda; do
     (( $+functions[$fn] )) || missing="$missing $fn"
   done
   if [[ -n "$missing" ]]; then echo "FALTANDO:$missing"; exit 1; fi
