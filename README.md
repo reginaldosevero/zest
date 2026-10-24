@@ -97,8 +97,9 @@ zest/
 ## 🗺️ Roadmap
 
 - [x] **v0.1** — módulos funcionais + install/uninstall + doctor + smoke test
+- [x] **CI em Debian/Fedora/Arch/Alpine** — instalar → reinstalar → doctor → desinstalar (v0.1.7)
 - [ ] **v0.2** — detecção de distro no install-tool (apt/dnf/pacman antes de binário)
-- [ ] **v1.0** — i18n (pt_BR/en) · CI em Debian/Fedora/Arch/Alpine · curl | bash
+- [ ] **v1.0** — i18n (pt_BR/en) · `curl | bash`
 
 ## 📄 Licença
 
