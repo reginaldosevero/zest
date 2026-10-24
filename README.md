@@ -18,6 +18,10 @@ O terminal Linux padrão é cru e as mensagens de erro parecem latim. O Zest acr
 | 12 gerenciadores de pacote um por um | `updateall` → atualiza tudo, pula o que não existe |
 | Anotações em post-its | `note` → nota rápida no terminal, `notes` numeradas, `noterm 3` |
 
+![topmem: ps aux cru vs. topmem do Zest](docs/topmem-antes-depois.gif)
+
+*`topmem`: o mesmo `ps aux` acima, agrupado por programa e com barras — gerado direto do Zest, sem edição.*
+
 ## ✨ Princípios
 
 1. **Zero root por padrão** — ferramentas vão para `~/.local/bin`
