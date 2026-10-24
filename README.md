@@ -68,6 +68,8 @@ zest add fzf bat eza ripgrep fd delta lazygit duf jq yq direnv tldr zoxide atuin
 
 ## 🧰 Comandos que o Zest traz
 
+> **Não sabe por onde começar?** Digite `ajuda` em qualquer terminal. Sai uma colinha com tudo que o Zest oferece, organizada por categoria. Aceita filtro: `ajuda git`, `ajuda histórico`, `ajuda nota`.
+
 **Diagnóstico:** `sysinfo` · `topmem` · `topcpu` · `df` · `portcheck host porta` · `ipinfo`
 
 **Produtividade:** `note` / `notes` / `noterm N` / `noteclean` · `todo` / `todos` / `tododone` · `calc 2+2` · `timer 25` · `worldtime` · `weather` · `news` (em português!)
@@ -80,6 +82,8 @@ zest add fzf bat eza ripgrep fd delta lazygit duf jq yq direnv tldr zoxide atuin
 
 **Projetos em segundos:** `pyproject minha-api` · `nodeproject meu-site` · `goproject` · `rustproject`
 
+**Histórico do shell:** `histnum` (lista numerada) · `histsed N` (apaga uma linha) · `histdel 'senha'` (apaga todas com o padrão) · `histclear` (apaga tudo) · `histsearch` · `histcount` · `histclean` (remove duplicatas)
+
 ## 🗂️ Estrutura
 
 ```
@@ -89,7 +93,8 @@ zest/
 ├── modules/*.zsh                # um módulo por tema, todos com guardas
 │   ├── 00-path · 05-safety · 20-tools · 21-keys
 │   ├── 30-aliases · 41-daily · 43-git · 45-devops
-│   └── 46-system · 47-projects · 48-text · 49-utils · 99-welcome
+│   ├── 46-system · 47-projects · 48-text · 49-utils · 50-history
+│   └── 98-ajuda · 99-welcome
 ├── lib/install-tool.sh          # baixa binários certos por distro/arquitetura
 └── tests/smoke.sh               # CI-ready
 ```
