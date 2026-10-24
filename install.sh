@@ -70,12 +70,18 @@ echo "✓ zsh encontrado: $(zsh --version)"
 # 2) Oh My Zsh: instala ANTES de mexer no .zshrc (para ele criar o template com plugins=())
 # Créditos: Oh My Zsh é projeto de Robby Russell e comunidade — https://ohmyzsh.com (MIT)
 if [[ $WITH_OMZ == 1 && ! -d "$HOME/.oh-my-zsh" ]]; then
-  echo "· Oh My Zsh não encontrado — instalando (sem root, sem trocar seu shell)…"
-  # ZSH fixado: o instalador não pode herdar um ZSH de outro shell do usuário
-  if ZSH="$HOME/.oh-my-zsh" sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" -- --unattended --keep-zshrc >/dev/null 2>&1; then
+  echo "· Oh My Zsh não encontrado — instalando por clone (sem executar script remoto)…"
+  # clone em vez de "curl | sh": nenhum código remoto é executado às cegas.
+  # Créditos: Oh My Zsh é projeto de Robby Russell e comunidade — https://ohmyzsh.com (MIT)
+  if git clone --depth 1 -q https://github.com/ohmyzsh/ohmyzsh.git "$HOME/.oh-my-zsh" 2>/dev/null; then
+    # mesmo comportamento do instalador oficial: .zshrc nasce do template
+    if [[ ! -f "$ZSHRC" ]]; then
+      cp "$HOME/.oh-my-zsh/templates/zshrc.zsh-template" "$ZSHRC"
+      echo "✓ .zshrc criado a partir do template do Oh My Zsh"
+    fi
     echo "✓ Oh My Zsh instalado em ~/.oh-my-zsh"
   else
-    echo "⚠️  download do Oh My Zsh falhou — seguindo em modo standalone (plugins carregados pelo módulo 10)"
+    echo "⚠️  clone do Oh My Zsh falhou — seguindo em modo standalone (plugins carregados pelo módulo 10)"
   fi
 fi
 
@@ -94,7 +100,8 @@ echo "✓ módulos em $DEST"
 # 4) backup do .zshrc (uma vez por dia, sem acumular)
 if [[ -f "$ZSHRC" ]]; then
   BAK="$ZSHRC.zest-bak-$(date +%Y%m%d)"
-  [[ -f "$BAK" ]] || cp "$ZSHRC" "$BAK"
+  # -p preserva permissões: um .zshrc 600 (com tokens) não vira backup 644
+  [[ -f "$BAK" ]] || cp -p "$ZSHRC" "$BAK"
   echo "✓ backup: $BAK"
 fi
 
@@ -118,11 +125,11 @@ fi
 # 6) plugins do zsh (opcional, com --with-plugins)
 if [[ $WITH_PLUGINS == 1 ]]; then
   declare -A REPOS=(
-    [zsh-autosuggestions]="https://github.com/zsh-users/zsh-autosuggestions"
-    [zsh-syntax-highlighting]="https://github.com/zsh-users/zsh-syntax-highlighting"
-    [zsh-completions]="https://github.com/zsh-users/zsh-completions"
-    [zsh-history-substring-search]="https://github.com/zsh-users/zsh-history-substring-search"
-    [zsh-autopair]="https://github.com/hlissner/zsh-autopair"
+    [zsh-autosuggestions]="https://github.com/zsh-users/zsh-autosuggestions v0.7.1"
+    [zsh-syntax-highlighting]="https://github.com/zsh-users/zsh-syntax-highlighting 0.8.0"
+    [zsh-completions]="https://github.com/zsh-users/zsh-completions 0.36.0"
+    [zsh-history-substring-search]="https://github.com/zsh-users/zsh-history-substring-search v1.1.0"
+    [zsh-autopair]="https://github.com/hlissner/zsh-autopair v1.0"
   )
 
   # 6a) Com Oh My Zsh: plugins em custom/plugins + lista plugins=()
@@ -131,7 +138,8 @@ if [[ $WITH_PLUGINS == 1 ]]; then
     mkdir -p "$CUST"
     for p in "${!REPOS[@]}"; do
       if [[ ! -d "$CUST/$p" ]]; then
-        git clone --depth 1 -q "${REPOS[$p]}" "$CUST/$p" && echo "✓ plugin clonado: $p"
+        read -r _url _ref <<< "${REPOS[$p]}"
+        git clone --depth 1 --branch "$_ref" -q "$_url" "$CUST/$p" && echo "✓ plugin clonado: $p ($_ref)"
       fi
     done
     PYTHONIOENCODING=utf-8 python3 - "$ZSHRC" "${!REPOS[@]}" <<'PYEOF'
@@ -164,7 +172,8 @@ PYEOF
     mkdir -p "$PDIR"
     for p in "${!REPOS[@]}"; do
       if [[ ! -d "$PDIR/$p" ]]; then
-        git clone --depth 1 -q "${REPOS[$p]}" "$PDIR/$p" && echo "✓ plugin standalone: $p"
+        read -r _url _ref <<< "${REPOS[$p]}"
+        git clone --depth 1 --branch "$_ref" -q "$_url" "$PDIR/$p" && echo "✓ plugin standalone: $p ($_ref)"
       fi
     done
   fi
