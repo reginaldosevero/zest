@@ -94,6 +94,47 @@ zest/
 └── tests/smoke.sh               # CI-ready
 ```
 
+## 🧹 Desinstalação
+
+O Zest sai limpo: basta rodar `uninstall.sh` no diretório do projeto.
+
+**Modo padrão** (seguro — só remove o Zest, mantém seu setup):
+
+```bash
+git clone https://github.com/reginaldosevero/zest
+cd zest
+bash uninstall.sh
+```
+
+Remove:
+- bloco `>>> zest >>>` do `.zshrc`
+- módulos em `~/.config/zest/`
+- comando `~/.local/bin/zest`
+
+Mantém (intencional):
+- ferramentas CLI instaladas via `zest add` (bat, fzf, rg…)
+- backups `.zshrc.zest-bak-*`
+- Oh My Zsh (se estiver instalado)
+
+**Modo completo** (remove TUDO que o Zest criou):
+
+```bash
+bash uninstall.sh --full
+```
+
+Além do modo padrão, remove também:
+- `~/.oh-my-zsh/` (instalado pelo Zest)
+- backups `.zshrc.zest-bak-*`
+- cache de completion `.zcompdump-*`
+
+Em ambos os casos, as ferramentas CLI em `~/.local/bin` ficam — se quiser apagá-las também:
+
+```bash
+rm -f ~/.local/bin/{fzf,zoxide,atuin,mise,jq,yq,direnv,eza,rg,fd,bat,delta,lazygit,duf,tldr}
+```
+
+---
+
 ## 🗺️ Roadmap
 
 - [x] **v0.1** — módulos funcionais + install/uninstall + doctor + smoke test
