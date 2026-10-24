@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.1.7 — 2026-10-23
+
+### Novo
+- **CI no GitHub Actions** (`.github/workflows/ci.yml`): lint (`zsh -n`, `bash -n`, shellcheck) + smoke test + **instalação real** em Debian, Fedora, Arch e Alpine, com ciclo completo (instalar → reinstalar → `zest doctor` → desinstalar) e um job dedicado ao modo `--with-omz`
+- README: GIF antes/depois do `topmem` (gerado do Zest real, sem edição)
+- Apoio ao projeto: Lightning e Bitcoin (README, `.github/FUNDING.yml` e rodapé do `ajuda`)
+
+### Corrigido
+- `uninstall.sh` não depende mais de `python3` (usa `awk`) — agora funciona em Debian slim, Alpine e qualquer distro mínima
+- `uninstall.sh` devolve o `.zshrc` **idêntico byte a byte** ao original (testado no CI)
+
+## 0.1.6 — 2026-10-23
+
+### Novo
+- Comando `ajuda`: cheatsheet completo no terminal, com os comandos agrupados por tema
+
+## 0.1.5 — 2026-10-23
+
+### Corrigido
+- URLs quebradas (404) de `fzf`, `duf` e `tldr` no `lib/install-tool.sh` — downloads agora são validados antes de instalar
+- `zest doctor` passou a checar a sintaxe do `.zshrc` com o próprio zsh
+
+## 0.1.4 — 2026-10-23
+
+### Corrigido
+- Auto-cura do `)` órfão que a v0.1.2 deixava no `.zshrc` (quebrava bash e zsh)
+- Instalador oferece trocar o shell padrão para zsh (`chsh`), com instruções quando não há tty
+
+## 0.1.3 — 2026-10-23
+
+### Corrigido
+- VMs sem locale UTF-8 (locale C) não quebram mais a instalação: usa `C.UTF-8` quando disponível
+- Regex de `plugins=()` ancorado no início da linha — não casa mais o comentário de exemplo do Oh My Zsh
+
 ## 0.1.2 — 2026-10-23
 
 ### Novo

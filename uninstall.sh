@@ -7,16 +7,17 @@ ZSHRC="$HOME/.zshrc"
 echo "🌶️  Zest — desinstalação"
 
 if [[ -f "$ZSHRC" ]] && grep -q ">>> zest >>>" "$ZSHRC"; then
-  PYTHONIOENCODING=utf-8 python3 - "$ZSHRC" <<'PYEOF'
-import sys
-path = sys.argv[1]
-src = open(path, encoding="utf-8").read()
-if ">>> zest >>>" in src and "<<< zest <<<" in src:
-    pre, _, rest = src.partition("# >>> zest >>>")
-    _, _, pos = rest.partition("# <<< zest <<<")
-    open(path, "w", encoding="utf-8").write(pre.rstrip("\n") + "\n" + pos.lstrip("\n"))
-    print("OK: bloco do Zest removido do .zshrc (mais nada foi tocado)")
-PYEOF
+  TMP="$(mktemp)"
+  # remove o bloco marcado (e só ele) — awk em vez de python3: funciona em
+  # qualquer distro mínima (Debian slim, Alpine) sem dependências extras
+  awk '
+    /^# >>> zest >>>$/ { skip = 1; next }
+    /^# <<< zest <<<$/ { skip = 0; next }
+    skip { next }
+    /^[[:space:]]*$/ { blanks++; next }
+    { while (blanks > 0) { print ""; blanks-- } print }
+  ' "$ZSHRC" > "$TMP" && cat "$TMP" > "$ZSHRC" && rm -f "$TMP"
+  echo "OK: bloco do Zest removido do .zshrc (mais nada foi tocado)"
 else
   echo "· .zshrc sem bloco do Zest"
 fi

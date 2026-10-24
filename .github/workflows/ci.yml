@@ -1,0 +1,107 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: lint + smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar zsh e shellcheck
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq zsh shellcheck
+
+      - name: Sintaxe dos módulos (zsh -n)
+        run: |
+          fail=0
+          for f in modules/*.zsh; do
+            zsh -n "$f" || { echo "✗ $f"; fail=1; }
+          done
+          exit $fail
+
+      - name: Sintaxe dos scripts (bash -n)
+        run: |
+          for f in install.sh uninstall.sh bin/zest lib/*.sh tests/smoke.sh; do
+            bash -n "$f" || { echo "✗ $f"; exit 1; }
+          done
+
+      - name: shellcheck (erros)
+        run: shellcheck -S error install.sh uninstall.sh bin/zest lib/*.sh tests/smoke.sh
+
+      - name: Smoke test (funções carregam sem Oh My Zsh e sem ferramentas)
+        run: bash tests/smoke.sh
+
+  install:
+    name: instalação (${{ matrix.image }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - debian:stable-slim
+          - fedora:latest
+          - archlinux:latest
+          - alpine:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar → reinstalar → doctor → desinstalar
+        run: |
+          docker run --rm -v "$PWD:/zest" -w /zest "${{ matrix.image }}" sh -ec '
+            # Alpine não traz bash; o instalador se vira para instalar zsh/git/curl
+            command -v bash >/dev/null 2>&1 || apk add --no-cache bash >/dev/null
+
+            export HOME=/tmp/zest-home
+            mkdir -p "$HOME"
+
+            echo "::group::1ª instalação (dependências automáticas)"
+            bash install.sh
+            echo "::endgroup::"
+
+            echo "::group::2ª instalação (idempotência)"
+            bash install.sh
+            test "$(grep -c ">>> zest >>>" "$HOME/.zshrc")" -eq 1
+            test -f "$HOME/.local/bin/zest"
+            test -d "$HOME/.config/zest/modules"
+            echo "::endgroup::"
+
+            echo "::group::doctor"
+            "$HOME/.local/bin/zest" doctor
+            "$HOME/.local/bin/zest" doctor | grep -q "Base saudável"
+            echo "::endgroup::"
+
+            echo "::group::desinstalação"
+            bash uninstall.sh
+            ! grep -q "zest" "$HOME/.zshrc"
+            test ! -d "$HOME/.config/zest"
+            test ! -f "$HOME/.local/bin/zest"
+            echo "::endgroup::"
+
+            echo "✓ ${{ matrix.image }}: ciclo completo ok"
+          '
+
+  omz:
+    name: instalação com Oh My Zsh
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Debian + --with-omz
+        run: |
+          docker run --rm -v "$PWD:/zest" -w /zest debian:stable-slim sh -ec '
+            export HOME=/tmp/zest-home
+            mkdir -p "$HOME"
+            bash install.sh --with-omz
+            test -d "$HOME/.oh-my-zsh"
+            grep -q "^plugins=.*zsh-autosuggestions" "$HOME/.zshrc"
+            zsh -c "source ~/.zshrc; type topmem >/dev/null; type updateall >/dev/null; type sysinfo >/dev/null"
+            echo "✓ Oh My Zsh + plugins + módulos ok"
+          '
