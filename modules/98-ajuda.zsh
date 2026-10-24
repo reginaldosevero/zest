@@ -80,6 +80,18 @@ ATALHOS DE TECLADO
   ESC ESC              repete o comando anterior com sudo
   fuck                 corrige typos: gti stauts → git status
 
+HISTÓRICO
+  histnum [N]          lista as últimas N linhas com números (padrão: 30)
+                       → use para descobrir o número do comando
+  histsed N            apaga UMA linha pelo número (confirma antes)
+                       Ex.: histsed 42
+  histdel <padrão>     apaga TODAS as linhas que contêm o padrão
+                       Ex.: histdel 'senha'   ·   histdel 'api_key'
+  histclear            apaga TODO o histórico (pede confirmação)
+  histsearch <padrão>  mostra as linhas que contêm o padrão
+  histcount            quantas linhas tem o histórico
+  histclean           remove duplicatas e linhas vazias
+
 ❤️  APOIE O PROJETO: ⚡ nados@speed.app · ₿ bc1q...du5z
     (endereços completos para copiar estão no README do GitHub)
 FIM
