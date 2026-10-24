@@ -45,8 +45,8 @@ todo()  { echo "- [ ] $*" >>! ~/todo.txt && echo "TODO adicionado!"; }
 todos() { cat ~/todo.txt 2>/dev/null || echo "Nenhum TODO ainda"; }
 # 'done' é palavra reservada do zsh, por isso o nome 'tododone'
 tododone() { sed -i "s/- \[ \] $*/- [x] $*/" ~/todo.txt && echo "Marcado como feito!"; }
-weather() { curl -s "wttr.in/${1:-}?format=3" 2>/dev/null || echo "sem conexão"; }
-moon()  { curl -s "wttr.in/Moon?format=3" 2>/dev/null; }
+weather() { curl -s "https://wttr.in/${1:-}?format=3" 2>/dev/null || echo "sem conexão"; }
+moon()  { curl -s "https://wttr.in/Moon?format=3" 2>/dev/null; }
 # HN com títulos traduzidos para pt-BR (API MyMemory; fallback: título original)
 # Corpo em subshell ( ) para os jobs em background NÃO poluírem o terminal
 # com mensagens de job control ([1] 12345 / done ...)

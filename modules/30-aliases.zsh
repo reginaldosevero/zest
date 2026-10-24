@@ -25,7 +25,7 @@ alias listen='ss -tulnp | grep LISTEN'
 alias connections='ss -tan | grep ESTAB'
 alias traceroute='traceroute -n'
 
-geoip() { curl -s "http://ip-api.com/json/$1" | jq .; }   # geoip 8.8.8.8
+geoip() { curl -s "https://ip-api.com/json/$1" | jq .; }   # geoip 8.8.8.8
 
 # ------------------------------------------------------------
 #  ALIASES — Banco de Dados

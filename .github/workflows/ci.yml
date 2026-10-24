@@ -15,6 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Instalar zsh e shellcheck
         run: sudo apt-get update -qq && sudo apt-get install -y -qq zsh shellcheck
@@ -52,39 +54,34 @@ jobs:
           - alpine:latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Instalar → reinstalar → doctor → desinstalar
         run: |
           docker run --rm -v "$PWD:/zest" -w /zest "${{ matrix.image }}" sh -ec '
-            # Alpine não traz bash; o instalador se vira para instalar zsh/git/curl
             command -v bash >/dev/null 2>&1 || apk add --no-cache bash >/dev/null
-
             export HOME=/tmp/zest-home
             mkdir -p "$HOME"
-
-            echo "::group::1ª instalação (dependências automáticas)"
+            echo "::group::1ª instalação"
             bash install.sh
             echo "::endgroup::"
-
-            echo "::group::2ª instalação (idempotência)"
+            echo "::group::2ª execução (idempotência)"
             bash install.sh
             test "$(grep -c ">>> zest >>>" "$HOME/.zshrc")" -eq 1
             test -f "$HOME/.local/bin/zest"
             test -d "$HOME/.config/zest/modules"
             echo "::endgroup::"
-
             echo "::group::doctor"
             "$HOME/.local/bin/zest" doctor
             "$HOME/.local/bin/zest" doctor | grep -q "Base saudável"
             echo "::endgroup::"
-
             echo "::group::desinstalação"
             bash uninstall.sh
             ! grep -q "zest" "$HOME/.zshrc"
             test ! -d "$HOME/.config/zest"
             test ! -f "$HOME/.local/bin/zest"
             echo "::endgroup::"
-
             echo "✓ ${{ matrix.image }}: ciclo completo ok"
           '
 
@@ -93,6 +90,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Debian + --with-omz
         run: |

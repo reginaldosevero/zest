@@ -4,7 +4,7 @@
 diskusage_dir() { du -sh "${1:-.}"/* 2>/dev/null | sort -rh | head -20; }
 
 ipinfo() {
-  echo "🌐 IP Público: $(curl -s --max-time 5 ifconfig.me)"
+  echo "🌐 IP Público: $(curl -s --max-time 5 https://ifconfig.me)"
   echo "🏠 IP Local:   $(hostname -I | awk '{print $1}')"
   echo "📡 Gateway:    $(ip route | grep default | awk '{print $3}')"
   echo "🔗 DNS:        $(grep nameserver /etc/resolv.conf | head -1)"
