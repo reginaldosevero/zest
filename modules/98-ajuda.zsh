@@ -57,7 +57,9 @@ ARQUIVOS E REDE
   urlencode texto      codifica/decodifica texto para URL
   countlines           conta linhas de código do projeto
   spell arquivo        verifica ortografia (aspell): lista erros + sugestões
-                       spell -i arquivo  → corrige uma a uma, interativo
+                       spell -        → verifica o que você digita (Ctrl+D p/ terminar)
+                       spell -x       → verifica o texto copiado (clipboard)
+                       spell -i arquivo → corrige uma a uma, interativo
   correct              habilita correção ortográfica do zsh (sugere correção de comandos)
 
 PROJETOS (cria tudo pronto em segundos)
