@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.1.8 — 2026-10-26
+
+### Novo
+- **Módulo de histórico** (`modules/50-history.zsh`): `histnum` (lista numerada), `histsed N` (apaga uma linha com confirmação), `histdel <padrão>` (apaga todas as linhas com o padrão), `histclear` (apaga tudo), `histsearch`, `histcount`, `histsize`, `histclean` — apagar o histórico que você quiser, exatamente
+- **Corretor ortográfico** (`spell`): `spell arquivo` lista erros com sugestões (aspell pt_BR), `spell -` lê stdin, `spell -x` lê o clipboard, `spell -i` corrige interativo — mais `correct`, que ativa a correção de comandos do zsh
+- **`uninstall.sh --full`**: remove Oh My Zsh, backups `.zshrc.zest-bak-*` e cache `.zcompdump-*` — sai sem deixar rastro
+- `SECURITY.md` com política de divulgação responsável
+
+### Segurança
+- **Zero `curl | sh`**: Oh My Zsh via `git clone`; zoxide/atuin/mise via binários de release
+- **Checksum SHA-256** conferido via API do GitHub + **validação ELF** antes de instalar binário
+- **Plugins pinados por tag** (reprodutível)
+- **HTTPS-only** em todas as APIs externas (wttr.in, ip-api, ifconfig.me)
+- CI com `persist-credentials: false`; guards `--` em tar/rsync/wget/basename
+
+### Docs
+- README: seção **Desinstalação** (modo padrão e `--full`), destaque do comando `ajuda`, linha **Histórico do shell** e `spell` na seção de arquivos
+
 ## 0.1.7 — 2026-10-23
 
 ### Novo
