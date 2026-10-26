@@ -76,7 +76,7 @@ zest add fzf bat eza ripgrep fd delta lazygit duf jq yq direnv tldr zoxide atuin
 
 **Git:** `git status` com mensagem amigável fora de repositórios · `glog` · `gpull` · `gstash "msg"` · `gclean_branches` · `lazygit`
 
-**Arquivos:** `z` (cd inteligente) · `ll` · `lt` · `bat` · `fd` · `rg` · `extract arquivo.zip` · `syncdir origem destino` · `backup_dir pasta` · `spell arquivo` (aspell)
+**Arquivos:** `z` (cd inteligente) · `ll` · `lt` · `bat` · `fd` · `rg` · `extract arquivo.zip` · `syncdir origem destino` · `backup_dir pasta` · `spell arquivo` (verifica ortografia; `spell -i` corrige interativo)
 
 **Manutenção:** `updateall` (12 gerenciadores: apt, omz, mise, uv, pipx, pip, flatpak, snap, npm, rustup, opencode, tldr) · `sysclean` · `fuck` (corrige typos)
 

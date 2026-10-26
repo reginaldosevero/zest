@@ -56,7 +56,8 @@ ARQUIVOS E REDE
   json2yaml arquivo    converte JSON→YAML · yaml2json o inverso
   urlencode texto      codifica/decodifica texto para URL
   countlines           conta linhas de código do projeto
-  spell                verifica ortografia do arquivo (aspell)
+  spell arquivo        verifica ortografia (aspell): lista erros + sugestões
+                       spell -i arquivo  → corrige uma a uma, interativo
   correct              habilita correção ortográfica do zsh (sugere correção de comandos)
 
 PROJETOS (cria tudo pronto em segundos)
