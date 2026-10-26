@@ -111,6 +111,20 @@ Saída real:
 > **`correct`** — comando extra que ativa a correção de **comandos** nativa do zsh:
 > você digita `git stautos` e o zsh pergunta se era `git status`.
 
+### ⌨️ Corrigir enquanto digita: **Alt+S**
+
+Escreveu uma palavra errada **na linha de comando**? Mova o cursor para ela (ou deixe logo depois) e aperte **Alt+S**: o Zest consulta o aspell e troca pela correção na hora, sem sair do terminal.
+
+```
+$ echo este texo para voce        ← cursor em qualquer lugar de "voce"
+   (Alt+S)
+$ echo este texo para você        ✔ corrigido: voce → você
+   (Alt+S de novo, agora em "texo")
+$ echo este texto para você       ✔ corrigido: texo → texto
+```
+
+Funciona com acentos (`recepcao` → `recepção`) e respeita a palavra correta sem mexer nela.
+
 ## 🗂️ Estrutura
 
 ```

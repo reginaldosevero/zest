@@ -61,6 +61,7 @@ ARQUIVOS E REDE
                        spell -x       → verifica o texto copiado (clipboard)
                        spell -i arquivo → corrige uma a uma, interativo
   correct              habilita correção ortográfica do zsh (sugere correção de comandos)
+  Alt+S                com o cursor numa palavra: troca pela correção (pt_BR)
 
 PROJETOS (cria tudo pronto em segundos)
   pyproject nome       Python: venv + .gitignore + Dockerfile + git
