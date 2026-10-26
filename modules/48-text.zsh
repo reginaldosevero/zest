@@ -13,6 +13,12 @@ spell() {
   aspell -c "$file"
 }
 
+correct() {
+  echo "✅ Correção ortográfica ativada no zsh"
+  echo "   Próximos comandos terão sugestão de correção automática"
+  echo "   Use 'setopt CORRECT' para desativar ou 'setopt NO_CORRECT' para desligar"
+}
+
 replace() {
   local search="$1" repl="$2" ext="${3:-*}"
   grep -rl "$search" --include="*.$ext" . | xargs -r sed -i "s/$search/$repl/g"

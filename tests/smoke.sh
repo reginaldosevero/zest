@@ -21,7 +21,7 @@ export ZEST_QUIET=1
 if zsh -c '
   for f in modules/*.zsh(N); do source "$f"; done
   missing=""
-  for fn in sysinfo topmem topcpu spell note notes noterm noteclean todo todos tododone \
+  for fn in sysinfo topmem topcpu spell correct note notes noterm noteclean todo todos tododone \
             weather moon news crypto stocks calc timer stopwatch \
             gci gpr gsync gstash gfiles gclean_branches \
             dsh dlogsall drmi dbuildpush dcp \

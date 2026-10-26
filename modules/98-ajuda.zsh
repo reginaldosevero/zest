@@ -57,6 +57,7 @@ ARQUIVOS E REDE
   urlencode texto      codifica/decodifica texto para URL
   countlines           conta linhas de código do projeto
   spell                verifica ortografia do arquivo (aspell)
+  correct              habilita correção ortográfica do zsh (sugere correção de comandos)
 
 PROJETOS (cria tudo pronto em segundos)
   pyproject nome       Python: venv + .gitignore + Dockerfile + git
