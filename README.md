@@ -76,13 +76,40 @@ zest add fzf bat eza ripgrep fd delta lazygit duf jq yq direnv tldr zoxide atuin
 
 **Git:** `git status` com mensagem amigável fora de repositórios · `glog` · `gpull` · `gstash "msg"` · `gclean_branches` · `lazygit`
 
-**Arquivos:** `z` (cd inteligente) · `ll` · `lt` · `bat` · `fd` · `rg` · `extract arquivo.zip` · `syncdir origem destino` · `backup_dir pasta` · `spell arquivo` (verifica ortografia; `spell -i` corrige interativo)
+**Arquivos:** `z` (cd inteligente) · `ll` · `lt` · `bat` · `fd` · `rg` · `extract arquivo.zip` · `syncdir origem destino` · `backup_dir pasta`
 
 **Manutenção:** `updateall` (12 gerenciadores: apt, omz, mise, uv, pipx, pip, flatpak, snap, npm, rustup, opencode, tldr) · `sysclean` · `fuck` (corrige typos)
 
 **Projetos em segundos:** `pyproject minha-api` · `nodeproject meu-site` · `goproject` · `rustproject`
 
 **Histórico do shell:** `histnum` (lista numerada) · `histsed N` (apaga uma linha) · `histdel 'senha'` (apaga todas com o padrão) · `histclear` (apaga tudo) · `histsearch` · `histcount` · `histclean` (remove duplicatas)
+
+**Novo ✨ Ortografia:** `spell` (novo!) · `correct` · `spell arquivo` · `spell -` · `spell -x` — veja a seção **spell — corretor ortográfico** logo abaixo
+
+## ✅ spell — corretor ortográfico (novo!)
+
+Função **nova do Zest**: verifica ortografia de qualquer texto em português com o [aspell](http://aspell.net) (dicionário `pt_BR` ativado automaticamente quando instalado).
+
+```bash
+spell readme.txt      # verifica um arquivo: lista cada erro com sugestões
+spell -               # verifica o que você digita (Ctrl+D no fim) — ou use pipe:
+echo "este texo tem exeplario" | spell -
+spell -x              # verifica o texto que você COPIOU (Ctrl+C em qualquer lugar)
+spell -i readme.txt   # interativo: corrige palavra por palavra
+```
+
+Saída real:
+
+```
+❌ texo
+   → teixo, texto, teco, taxo, teio, mexo, nexo, sexo
+
+📝 1 palavra(s) com problema em readme.txt
+   para corrigir uma a uma: spell -i readme.txt
+```
+
+> **`correct`** — comando extra que ativa a correção de **comandos** nativa do zsh:
+> você digita `git stautos` e o zsh pergunta se era `git status`.
 
 ## 🗂️ Estrutura
 
