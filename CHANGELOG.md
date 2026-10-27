@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.9 — 2026-10-27
+
+### Segurança
+- **`replace`**: busca e troca agora são LITERAL (não regex) — metacaracteres como `.`, `*`, `/`, `[` e `^` perdem o significado especial. Busca via `grep -rlF` e ambos os lados escapados para `sed`.
+- **`tododone`**: localiza a linha exata com `grep -Fn` e edita só essa linha com `sed` delimitado por `|`. Tarefas com `/`, `[` ou `]` não quebram mais o sed e a tarefa não ficava marcada silenciosamente.
+- **`weather`**: a cidade é URL-encoded (`jq -Rr @uri`) antes de `?format=3`, impedindo injeção de parâmetros de query por entrada do usuário. Adicionado `--max-time 8`.
+- **`install.sh`**: clone do Oh My Zsh usa `--single-branch --branch master` e registra o commit SHA efetivamente instalado em `~/.oh-my-zsh/.zest-omz-pin` para auditoria/reprodutibilidade (upstream não publica tags/releases).
+
 ## 0.1.8 — 2026-10-26
 
 ### Novo
