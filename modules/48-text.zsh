@@ -170,9 +170,20 @@ correct() {
   echo "   Dica: Alt+S corrige a ortografia da palavra sob o cursor (pt_BR)"
 }
 
+# replace <busca> <troca> [ext] — troca texto LITERAL (não regex) em todos os
+# arquivos da extensão. Busca e troca vão escapadas para o sed: '.', '*', '/'
+# etc. perdem o significado especial.
 replace() {
   local search="$1" repl="$2" ext="${3:-*}"
-  grep -rl "$search" --include="*.$ext" . | xargs -r sed -i "s/$search/$repl/g"
+  [[ -n "$search" ]] || { echo "Uso: replace <busca> <troca> [extensão]"; return 1; }
+  # escapa metacaracteres na busca (\ & | / . * [ ] ^ $ ? + ( ) { })
+  local esc_busca
+  esc_busca=$(printf '%s' "$search" | sed 's/[.[\*^$?()+{}|\/\\]/\\&/g')
+  # na substituição só \ & e / precisam de escape
+  local esc_troca
+  esc_troca=$(printf '%s' "$repl" | sed 's/[\/&\\]/\\&/g')
+  grep -rlF -- "$search" --include="*.$ext" . \
+    | xargs -r sed -i "s/${esc_busca}/${esc_troca}/g"
   echo "✅ Substituído '$search' por '$repl' em arquivos *.$ext"
 }
 

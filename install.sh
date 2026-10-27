@@ -73,13 +73,20 @@ if [[ $WITH_OMZ == 1 && ! -d "$HOME/.oh-my-zsh" ]]; then
   echo "· Oh My Zsh não encontrado — instalando por clone (sem executar script remoto)…"
   # clone em vez de "curl | sh": nenhum código remoto é executado às cegas.
   # Créditos: Oh My Zsh é projeto de Robby Russell e comunidade — https://ohmyzsh.com (MIT)
-  if git clone --depth 1 -q https://github.com/ohmyzsh/ohmyzsh.git "$HOME/.oh-my-zsh" 2>/dev/null; then
+  # Obs.: o upstream não publica tags/releases — só o branch master. Clonamos
+  # com --single-branch e registramos o commit SHA exato em .zest-omz-pin para
+  # auditoria/reprodutibilidade (mesmo espírito dos plugins pinados por tag).
+  if git clone --depth 1 --single-branch --branch master -q \
+       https://github.com/ohmyzsh/ohmyzsh.git "$HOME/.oh-my-zsh" 2>/dev/null; then
+    # registra o commit efetivamente instalado (auditoria posterior / rollback)
+    ( cd "$HOME/.oh-my-zsh" && git rev-parse HEAD >"$HOME/.oh-my-zsh/.zest-omz-pin" ) 2>/dev/null || true
     # mesmo comportamento do instalador oficial: .zshrc nasce do template
     if [[ ! -f "$ZSHRC" ]]; then
       cp "$HOME/.oh-my-zsh/templates/zshrc.zsh-template" "$ZSHRC"
       echo "✓ .zshrc criado a partir do template do Oh My Zsh"
     fi
-    echo "✓ Oh My Zsh instalado em ~/.oh-my-zsh"
+    omz_sha=$(cat "$HOME/.oh-my-zsh/.zest-omz-pin" 2>/dev/null | cut -c1-7)
+    echo "✓ Oh My Zsh instalado em ~/.oh-my-zsh (commit ${omz_sha:-?})"
   else
     echo "⚠️  clone do Oh My Zsh falhou — seguindo em modo standalone (plugins carregados pelo módulo 10)"
   fi

@@ -44,8 +44,26 @@ noteclean() {
 todo()  { echo "- [ ] $*" >>! ~/todo.txt && echo "TODO adicionado!"; }
 todos() { cat ~/todo.txt 2>/dev/null || echo "Nenhum TODO ainda"; }
 # 'done' é palavra reservada do zsh, por isso o nome 'tododone'
-tododone() { sed -i "s/- \[ \] $*/- [x] $*/" ~/todo.txt && echo "Marcado como feito!"; }
-weather() { curl -s "https://wttr.in/${1:-}?format=3" 2>/dev/null || echo "sem conexão"; }
+# usa grep -nF (match literal) + edita só a linha encontrada — barras, colchetes
+# e outros caracteres especiais na tarefa não quebram mais o sed
+tododone() {
+  [[ -f ~/todo.txt ]] || { echo "Nenhum TODO ainda"; return 1; }
+  local alvo="$*" n
+  n=$(grep -Fn -- "- [ ] ${alvo}" ~/todo.txt | head -1 | cut -d: -f1)
+  if [[ -z "$n" ]]; then
+    echo "· tarefa não encontrada: '$alvo'"
+    echo "  Veja as tarefas com: todos"
+    return 1
+  fi
+  sed -i "${n}s|- \[ \]|- [x]|" ~/todo.txt && echo "✅ Marcado como feito: $alvo"
+}
+# cidade vai URL-encoded ANTES de ?format=3 — senão "?", "&" ou "/" na entrada
+# sobrescrevem os parâmetros da query (mesmo truque usado em news/)
+weather() {
+  local cty
+  cty=$(printf '%s' "${1:-}" | jq -Rr @uri 2>/dev/null) || cty="${1:-}"
+  curl -s --max-time 8 "https://wttr.in/${cty}?format=3" 2>/dev/null || echo "sem conexão"
+}
 moon()  { curl -s "https://wttr.in/Moon?format=3" 2>/dev/null; }
 # HN com títulos traduzidos para pt-BR (API MyMemory; fallback: título original)
 # Corpo em subshell ( ) para os jobs em background NÃO poluírem o terminal
