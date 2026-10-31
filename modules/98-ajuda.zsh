@@ -29,7 +29,7 @@ PRODUTIVIDADE
   weather [cidade]     clima atual
   lua                  fase da lua: 🌕 Lua cheia / Illuminação: 100% / Próxima: …
   crypto               Bitcoin/Ethereum em USD e BRL
-  stocks TICKER        cotação na bolsa
+  stocks PETR4.SA      cotação na bolsa (B3 leva .SA; ex.: PETR4.SA, AAPL)
   news                 manchetes do Hacker News em português
 
 GIT

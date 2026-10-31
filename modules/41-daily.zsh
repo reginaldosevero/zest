@@ -153,18 +153,22 @@ crypto() {
 # jq reclama de JSON inválido parecendo ticker errado.
 stocks() {
   (( $# )) || { echo 'uso: stocks PETR4.SA   (ticker na B3 leva .SA)'; return 1; }
-  local json saida
+  local json saida erro
   json=$(curl -s -H 'User-Agent: Mozilla/5.0' \
          "https://query1.finance.yahoo.com/v8/finance/chart/$1")
   if [[ -z "$json" || "$json" != \{* ]]; then
     echo "o Yahoo não respondeu (muitas requisições ou sem rede) — tente de novo"
     return 1
   fi
+  local erro
+  erro=$(jq -r '.chart.error.description // empty' <<<"$json" 2>/dev/null)
+  [[ -n "$erro" ]] && { echo "$1: $erro (B3 usa o código com .SA — ex.: PETR4.SA)"; return 1; }
   saida=$(jq -r '.chart.result[0].meta
                  | select(.regularMarketPrice != null)
                  | "\(.shortName // .longName // .symbol): \(.regularMarketPrice) \(.currency // "")"' \
            <<<"$json" 2>/dev/null)
-  [[ -n "$saida" ]] && print -r -- "$saida" || echo "não achei o ticker $1"
+  [[ -n "$saida" ]] && print -r -- "$saida" \
+    || { echo "sem preço para $1 (ex.: stocks PETR4.SA)"; return 1; }
 }
 # calc — as aspas NÃO são frescura: no zsh o '*' é glob, então 'calc 2+3*4'
 # morre ANTES de chegar aqui ("no matches found"). O eval roda sem __builtins__,

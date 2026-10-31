@@ -1,5 +1,12 @@
 # Changelog
 
+## Não lançado (desde 0.3.3)
+
+- **`stocks TICKER`**: a ajuda usava `TICKER` como exemplo, que parece um comando
+  e devolve "não achei o ticker". Exemplo agora é real (`PETR4.SA`), e quando o
+  Yahoo responde `Not Found` a mensagem repete o motivo dele (símbolo delistado,
+  por exemplo) em vez de um genérico.
+
 ## 0.3.3 — 2026-10-31
 
 Correções apontadas por testes em container Debian limpo (root, sem `git`,
