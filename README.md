@@ -54,6 +54,30 @@ cd zest-master && ./install.sh
 > Precisa rodar como quem pode instalar pacotes: `sudo -i` antes, num container já root não muda nada.
 > As linhas de distro que não existirem na sua máquina são ignoradas — só a sua roda.
 
+---
+
+#### 🐳 Exemplo direto: **Debian/Ubuntu container limpo (root, sem nada)**
+
+```bash
+# Você está root no container, sem git, sem curl, sem sudo
+apt-get update -qq && apt-get install -y -qq curl
+curl -fsSL https://github.com/reginaldosevero/zest/archive/refs/heads/master.tar.gz | tar xz
+cd zest-master && ./install.sh --with-omz
+```
+
+> **`--with-omz`** já instala o Oh My Zsh + plugins (autosuggestions, syntax-highlighting, etc.) junto. Sem isso, o Zest roda liso sem Oh My Zsh.
+> Se quiser só o Zest (sem Oh My Zsh), tire o `--with-omz`.
+
+---
+
+#### 📦 Exemplo: **Debian/Ubuntu VM com usuário comum (tem sudo)**
+
+```bash
+sudo apt-get update && sudo apt-get install -y curl
+curl -fsSL https://github.com/reginaldosevero/zest/archive/refs/heads/master.tar.gz | tar xz
+cd zest-master && ./install.sh --with-omz
+```
+
 ### Se você já tem git
 
 ```bash
@@ -79,6 +103,44 @@ Numa máquina zerada:
 Na primeira execução, o instalador pergunta qual prompt você quer (1-4, default 1). Só em terminal interativo: em instalações desatendidas ou em CI, o default é `zest`.
 
 **Shell padrão:** se o login ainda for bash (ou outro), o Zest nunca carrega em um terminal novo — e a instalação pergunta se troca o shell para `zsh` (`chsh`). Em container sem `sudo`/tty, pergunta silenciosa e mostra a linha pronta. Comparação por inode (`-ef`): em distro com usrmerge, `/bin/zsh` e `/usr/bin/zsh` são o mesmo arquivo, então quem já usava zsh não era forçado a trocar.
+
+### ⚠️ `zest add Oh My Zsh` não existe — e por quê
+
+O `zest add` só baixa **ferramentas CLI** (fzf, rg, bat, eza, atuin, etc.). Oh My Zsh é um **framework de shell**, não uma ferramenta — então ele não está na lista de `zest add`. Tentar `zest add Oh My Zsh` divide o nome em palavras e diz "Ferramenta desconhecida: Oh / My / Zsh".
+
+Para ter o Oh My Zsh, use uma das opções abaixo.
+
+### 🧩 Oh My Zsh (opcional)
+
+O Zest funciona **sem** Oh My Zsh — os módulos são código zsh próprio. Mas se você quer os themes, aliases e integrações do Omz, tem três caminhos:
+
+**1) Na instalação (recomendado para quem está começando do zero)**
+
+```bash
+./install.sh --with-omz
+```
+
+O instalador detecta se o Omz já existe; se não, instala sozinho (precisa de `git`; em container root, `apt install git -y` é o jeito — sem `sudo`). Se o `git` não estiver disponível, o Omz é pulado e o Zest continua normal.
+
+**2) Depois que o Zest já está instalado**
+
+```bash
+cd ~/projetos/zest
+./install.sh --with-omz
+```
+
+Mesmo rodando de novo, o instalador é idempotente: o que já existe é pulado, e o Omz é instalado se faltar.
+
+**3) Manual (sem o Zest gerenciar)**
+
+```bash
+apt install git -y          # root no container: sem sudo
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+```
+
+> O instalador oficial do Omz **precisa de `git`**. Sem ele, a instalação falha com "git is not installed". Em container enxuto, instale o `git` primeiro (`apt install git -y`) e rode de novo.
+
+**Plugins:** com `--with-plugins` o Zest também baixa os plugins soltos (zsh-autosuggestions, zsh-syntax-highlighting, etc.) que funcionam em qualquer framework — incluindo o Omz, zinit, antidote ou só o próprio Zest.
 
 ### Sabores
 

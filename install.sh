@@ -367,6 +367,18 @@ if [[ -f "$ZSHRC" ]]; then
   echo "✓ backup: $BAK"
 fi
 
+# 4b) limpa referências órfãs no .zshrc — um framework que já foi desinstalado
+#     (Oh My Zsh, Starship, zinit…) deixa a linha 'source $ZSH/oh-my-zsh.sh' no
+#     arquivo, e o terminal quebra todo dia com "arquivo ou diretório inexistente".
+#     O Zest não pode mandar o usuário abrir o .zshrc na mão: ele varre sozinho
+#     e comenta as linhas cujo alvo não existe mais. Nunca apaga nada: só
+#     comenta, e o conteúdo do usuário continua intacto.
+#     Biblioteca em lib/sweep.sh — também pode ser usada por outros scripts.
+for _s in "$REPO_DIR/lib/sweep.sh" "${ZEST_HOME:-$HOME/.config/zest}/lib/sweep.sh"; do
+  [[ -f "$_s" ]] && source "$_s" && break
+done
+zest_sweep_orphans "$ZSHRC"
+
 # 5) bloco marcado no .zshrc (nunca duplica)
 if grep -q ">>> zest >>>" "$ZSHRC" 2>/dev/null; then
   echo "✓ .zshrc já carrega o Zest (nada duplicado)"
