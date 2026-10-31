@@ -2,6 +2,24 @@
 
 ## Não lançado (desde 0.3.3)
 
+- **`stocks TICKER` mostra o dia inteiro, não só o preço.** O retorno do Yahoo já
+  vinha trazendo variação, mín/máx do dia, mín/máx de 12 meses e volume — e o
+  `stocks` imprimia só uma linha e jogava o resto fora. Agora:
+
+  ```
+  PETROBRAS PN N2 · PETR4.SA (São Paulo)
+    52,71 BRL  ▲ +0,51  (+0,98%)  ·  17:05
+    dia 52,36–53,66 · 12m 29,53–59,79 · vol 61.713.100
+  ```
+
+  Nada de requisição a mais, é o mesmo JSON. Vírgula decimal e ponto de milhar
+  são feitos à mão: o container não tem locale `pt_BR` (o `%'d` do printf
+  dependeria dele) e jq não tem formatador de milhar. Campos que o Yahoo não
+  mandou simplesmente não aparecem, em vez de virar `dia —–—`.
+- **apóstrofo dentro de comentário do filtro jq quebrava o comando inteiro.** O
+  programa jq vai entre aspas simples e o comentário está lá dentro: um `'` fecha
+  a aspa, o resto da linha vira código solto e o zsh morre em "no matches found"
+  no primeiro colchete. Guarda #24 no `tests/smoke.sh` não deixa mais entrar.
 - **`stocks PETR4.SA` imprimia `erro=''` antes do preço.** Redeclarar uma
   variável já declarada na mesma função (`local json saida erro` e, mais
   abaixo, `local erro`) faz o zsh ecoar a atribuição na saída. O `local erro`

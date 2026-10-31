@@ -151,6 +151,10 @@ crypto() {
 # zsh vê o '[0]' como glob e morre com "no matches found" antes do jq; (2) o
 # Yahoo responde "Edge: Too Many Requests" para quem não se identifica, e aí o
 # jq reclama de JSON inválido parecendo ticker errado.
+# O mesmo retorno já traz variação do dia, mín/máx do dia e de 12 meses e volume
+# — era tudo isso que ia para o lixo. Tudo em pt-BR: vírgula decimal e ponto de
+# milhar feitos à mão, porque o container não tem locale pt_BR (o %'d do printf
+# dependeria dele) e jq não tem formatador de milhar nenhum.
 stocks() {
   (( $# )) || { echo 'uso: stocks PETR4.SA   (ticker na B3 leva .SA)'; return 1; }
   # 'erro' declarado uma única vez: redeclarar com 'local' faz o zsh imprimir
@@ -164,10 +168,50 @@ stocks() {
   fi
   erro=$(jq -r '.chart.error.description // empty' <<<"$json" 2>/dev/null)
   [[ -n "$erro" ]] && { echo "$1: $erro (B3 usa o código com .SA — ex.: PETR4.SA)"; return 1; }
-  saida=$(jq -r '.chart.result[0].meta
-                 | select(.regularMarketPrice != null)
-                 | "\(.shortName // .longName // .symbol): \(.regularMarketPrice) \(.currency // "")"' \
-           <<<"$json" 2>/dev/null)
+  saida=$(jq -r '
+    # duas casas em centavos inteiros: round antes do floor, senão o resto do
+    # float faz 52.715 virar "52,71" ou "52,70" conforme o humor do binário
+    def d2: fabs as $a | ($a * 100 | round) as $c
+            | (($c / 100 | floor) | tostring) + ","
+            + (($c % 100 | tostring) | if length < 2 then "0" + . else . end);
+    def d2z: if . == null then "—" else d2 end;
+    # milhar recursivo pegando a cauda com .[-3:] — sem aspas simples aqui
+    # dentro: o comentário está DENTRO do programa jq entre aspas, e um
+    # apóstrofo fecha a aspa; o zsh então vê o [-3:] solto como glob e morre
+    # com "no matches found" antes de chamar o jq
+    def grp: if . < 1000 then tostring
+             else ((. / 1000 | floor) | grp) + "." + (tostring | .[-3:]) end;
+    def assinado: if . == null then "—" elif . < 0 then "-" + d2 else "+" + d2 end;
+    def par($a; $b): "\($a | d2z)–\($b | d2z)";
+    def cabecalho: (.shortName // .longName // .symbol) | gsub(" +"; " ");
+    def bolsa: (.fullExchangeName // .exchangeName) as $b
+               | if $b == null then "" else " (\($b))" end;
+    def pregao: if .regularMarketTime and .gmtoffset != null
+                then "  ·  " + (.regularMarketTime + .gmtoffset | strftime("%H:%M"))
+                else "" end;
+    # Lista, não vírgula solta: no jq o pipe tem precedência sobre a vírgula,
+    # então a | b, c entregaria a string de b para o bloco de c ("cannot iterate")
+    def faixas:
+      ([.regularMarketDayLow, .regularMarketDayHigh]
+       | if all(. != null) then ["dia " + par(.[0]; .[1])] else [] end)
+      + ([.fiftyTwoWeekLow, .fiftyTwoWeekHigh]
+         | if all(. != null) then ["12m " + par(.[0]; .[1])] else [] end)
+      + (if .regularMarketVolume == null then []
+         else ["vol \(.regularMarketVolume | grp)"] end);
+    .chart.result[0].meta
+    | select(.regularMarketPrice != null)
+    | (.previousClose // .chartPreviousClose)                          as $pc
+    | (if $pc then .regularMarketPrice - $pc else null end)            as $troco
+    | (.regularMarketChangePercent
+       // (if $pc and $pc != 0 then $troco / $pc * 100 else null end)) as $pct
+    | "\(cabecalho) · \(.symbol)\(bolsa)",
+      "  \(.regularMarketPrice | d2) \(.currency // "")"
+      + (if ($troco // $pct) == null then ""
+         else "  " + (if ($pct // $troco) < 0 then "▼ " else "▲ " end)
+              + "\($troco | assinado)  (\($pct | assinado)%)" end)
+      + pregao,
+      (faixas | if length == 0 then empty else "  " + join(" · ") end)
+  ' <<<"$json" 2>/dev/null)
   [[ -n "$saida" ]] && print -r -- "$saida" \
     || { echo "sem preço para $1 (ex.: stocks PETR4.SA)"; return 1; }
 }

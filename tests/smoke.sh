@@ -400,5 +400,30 @@ else
   FAIL=1
 fi
 
+# 24) apóstrofo dentro do programa jq escrito entre aspas simples: o comentário
+#     mora DENTRO do filtro multi-linha e um ' nele fecha a aspa do shell — o
+#     resto da linha vira código solto e o zsh morre em "no matches found" no
+#     primeiro colchete. Foi assim que o 'stocks' formatado quebrou: um comentário
+#     dentro do filtro dizia 'tostring | [-3:]' não compila.
+#     Dentro do bloco aberto pelo jq, nenhum apóstrofo é permitido.
+if AP=$(env LC_ALL=C awk -v q="'" '
+  FILENAME != file { file = FILENAME; injq = 0 }
+  !injq {
+    if ($0 ~ /(^|[^A-Za-z_])jq[[:space:]]/ && gsub(q, q) % 2 == 1) injq = 1
+    next
+  }
+  {
+    n = gsub(q, q)
+    if (n % 2 == 1) { injq = 0; next }          # fechou o programa: linha normal
+    if (n > 0) printf "%s:%d: apóstrofo dentro do programa jq — fecha a aspa simples\n", FILENAME, FNR
+  }
+' modules/*.zsh bin/zest) && [[ -z "$AP" ]]; then
+  echo "  ✓ nenhum apóstrofo dentro de filtro jq (a aspa simples não se abre sozinha)"
+else
+  echo "  ✗ apóstrofo dentro de programa jq entre aspas simples:"
+  printf '%s\n' "$AP" | sed 's/^/      /'
+  FAIL=1
+fi
+
 echo "════════════════════"
 (( FAIL == 0 )) && echo "✅ smoke test passou" || { echo "❌ smoke test falhou"; exit 1; }
