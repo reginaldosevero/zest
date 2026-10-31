@@ -30,6 +30,11 @@ sem `sudo`, sem `ps`). Cada uma tem guarda no `tests/smoke.sh`.
   `musl` — o mesmo padrão que já valia para fzf/ripgrep/lazygit.
 - **`portinfo` exigia `sudo` até como root**, e devolvia silêncio quando não
   achava nada; `temps` idem. Os dois agora explicam o que falta.
+- **`calc 2+3*4` (o exemplo da própria ajuda) morria com "no matches found"**, e
+  `stocks` pelo mesmo motivo: no zsh `*` e `[0]` são glob, e a linha morre antes
+  de chegar ao comando. O `stocks` ainda levava "Edge: Too Many Requests" do
+  Yahoo — agora o `curl` manda `User-Agent` e a resposta é checada antes do `jq`.
+  `crypto` devolvia JSON cru onde a ajuda prometia leitura: são duas linhas.
 
 ### Novo
 - **O instalador cobre os utilitários de sistema que os wrappers chamam.** As
