@@ -168,25 +168,40 @@ do_install() {
       finish_bin "$(unpack_bin "$T/rg.tgz" rg)" rg ;;
 
     fd)
-      { read -r N; read -r SRC; } < <(pick_asset sharkdp/fd "fd-$(tag sharkdp/fd)-$A64-unknown-linux") || { echo "❌ nenhuma build de fd para $ARCH/$ZEST_LIBC"; return 1; }
-      verify sharkdp/fd "$N" "$SRC" && \
-      finish_bin "$(unpack_bin "$SRC" fd)" fd ;;
+      V=$(tag sharkdp/fd)
+      N="fd-${V}-$A64-unknown-linux-gnu.tar.gz"
+      dl "https://github.com/sharkdp/fd/releases/download/$V/$N" fd.tgz \
+        || { N="fd-${V}-$A64-unknown-linux-musl.tar.gz"; dl "https://github.com/sharkdp/fd/releases/download/$V/$N" fd.tgz; } \
+        || { echo "❌ nenhuma build de fd para $ARCH/$ZEST_LIBC"; return 1; }
+      verify sharkdp/fd "$N" "$T/fd.tgz" && \
+      finish_bin "$(unpack_bin "$T/fd.tgz" fd)" fd ;;
 
     bat)
-      { read -r N; read -r SRC; } < <(pick_asset sharkdp/bat "bat-$(tag sharkdp/bat)-$A64-unknown-linux") || { echo "❌ nenhuma build de bat para $ARCH/$ZEST_LIBC"; return 1; }
-      verify sharkdp/bat "$N" "$SRC" && \
-      finish_bin "$(unpack_bin "$SRC" bat)" bat ;;
+      V=$(tag sharkdp/bat)
+      N="bat-${V}-$A64-unknown-linux-gnu.tar.gz"
+      dl "https://github.com/sharkdp/bat/releases/download/$V/$N" bat.tgz \
+        || { N="bat-${V}-$A64-unknown-linux-musl.tar.gz"; dl "https://github.com/sharkdp/bat/releases/download/$V/$N" bat.tgz; } \
+        || { echo "❌ nenhuma build de bat para $ARCH/$ZEST_LIBC"; return 1; }
+      verify sharkdp/bat "$N" "$T/bat.tgz" && \
+      finish_bin "$(unpack_bin "$T/bat.tgz" bat)" bat ;;
 
     eza)
-      # eza NÃO tem versão no nome do asset: eza_x86_64-unknown-linux-gnu.tar.gz
-      { read -r N; read -r SRC; } < <(pick_asset eza-community/eza "eza_$A64-unknown-linux") || { echo "❌ nenhuma build de eza para $ARCH/$ZEST_LIBC"; return 1; }
-      verify eza-community/eza "$N" "$SRC" && \
-      finish_bin "$(unpack_bin "$SRC" eza)" eza ;;
+      # eza NÃO tem versão no nome do asset
+      N="eza_$A64-unknown-linux-gnu.tar.gz"
+      dl "https://github.com/eza-community/eza/releases/download/$(tag eza-community/eza)/$N" eza.tgz \
+        || { N="eza_$A64-unknown-linux-musl.tar.gz"; dl "https://github.com/eza-community/eza/releases/download/$(tag eza-community/eza)/$N" eza.tgz; } \
+        || { echo "❌ nenhuma build de eza para $ARCH/$ZEST_LIBC"; return 1; }
+      verify eza-community/eza "$N" "$T/eza.tgz" && \
+      finish_bin "$(unpack_bin "$T/eza.tgz" eza)" eza ;;
 
     delta)
-      { read -r N; read -r SRC; } < <(pick_asset dandavison/delta "delta-$(tag dandavison/delta | sed 's/^v//')-$A64-unknown-linux") || { echo "❌ nenhuma build de delta para $ARCH/$ZEST_LIBC"; return 1; }
-      verify dandavison/delta "$N" "$SRC" && \
-      finish_bin "$(unpack_bin "$SRC" delta)" delta ;;
+      V=$(tag dandavison/delta)
+      N="delta-${V#v}-$A64-unknown-linux-gnu.tar.gz"
+      dl "https://github.com/dandavison/delta/releases/download/$V/$N" delta.tgz \
+        || { N="delta-${V#v}-$A64-unknown-linux-musl.tar.gz"; dl "https://github.com/dandavison/delta/releases/download/$V/$N" delta.tgz; } \
+        || { echo "❌ nenhuma build de delta para $ARCH/$ZEST_LIBC"; return 1; }
+      verify dandavison/delta "$N" "$T/delta.tgz" && \
+      finish_bin "$(unpack_bin "$T/delta.tgz" delta)" delta ;;
 
     lazygit)
       V=$(tag jesseduffield/lazygit); N="lazygit_${V#v}_Linux_$A64.tar.gz"
