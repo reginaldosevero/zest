@@ -43,6 +43,15 @@ Numa máquina zerada, um único `./install.sh` entrega:
 - o **prompt** (pergunta qual estilo na primeira execução; default: `zest`, que é o visual `╭─usuário ~/dir ❯` com status do git)
 - os **plugins** se você quiser Oh My Zsh
 
+**Sem git?** O instalador baixa o repo sozinho (curl/wget) — é o caminho padrão em container e VM enxuto:
+
+```bash
+curl -fsSL https://github.com/reginaldosevero/zest/archive/refs/heads/master.tar.gz -o zest.tar.gz
+tar xzf zest.tar.gz && cd zest-master && ./install.sh
+```
+
+Ou, com git, clone e rode o instalador de dentro:
+
 ```bash
 git clone https://github.com/reginaldosevero/zest ~/projetos/zest
 cd ~/projetos/zest

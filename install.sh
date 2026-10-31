@@ -32,9 +32,20 @@ fi
 # lib/distro.sh do checkout estiver ausente (checkout quebrado).
 pm_run() {
   local pm="$1"; shift
-  if command -v sudo >/dev/null 2>&1; then sudo "$pm" "$@"
-  elif command -v su >/dev/null 2>&1; then su -c "$pm $*"
-  else echo "❌ Sem sudo e sem su — rode manualmente: $pm $*" >&2; return 1; fi
+  # root já é root: não chama sudo (que pode não existir) nem su (que pede
+  # senha e falha em container sem PAM). É o caso comum em VM/container.
+  # Usa 'id -u' (builtin do bash, não depende do PATH) em vez de EUID: em
+  # container, o PATH pode não ter o 'id' e um 'id' falso no PATH enganaria
+  # a checagem.
+  if [[ "$(id -u)" == "0" ]]; then
+    "$pm" "$@"
+  elif command -v sudo >/dev/null 2>&1; then
+    sudo "$pm" "$@"
+  elif command -v su >/dev/null 2>&1; then
+    su -c "$pm $*"
+  else
+    echo "❌ Sem sudo e sem su — rode manualmente: $pm $*" >&2; return 1
+  fi
 }
 pm_detect() {
   if declare -F zest_pm_detect >/dev/null 2>&1; then zest_pm_detect
