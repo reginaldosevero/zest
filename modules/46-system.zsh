@@ -57,10 +57,28 @@ sysinfo() {
 }
 
 sysclean() {
-  sudo apt autoremove -y
-  sudo apt autoclean
-  sudo journalctl --vacuum-time=7d
-  rm -rf ~/.cache/thumbnails/*
+  # nada de 'sudo apt ...' fixo: a limpeza segue o gerenciador da máquina
+  local pm
+  pm=$(_zest-pm-detect)
+  if [[ -n "$pm" ]]; then
+    echo "🧹 Limpeza de pacotes via $pm"
+    _zest-pm-autoremove "$pm"
+    _zest-pm-clean "$pm"
+  else
+    echo "· nenhum gerenciador de pacotes conhecido (apt/dnf/pacman/zypper/apk) — pulando"
+  fi
+
+  # journalctl só existe em sistema com systemd (Alpine/OpenRC não tem)
+  if command -v journalctl >/dev/null 2>&1; then
+    _zest-sudo journalctl --vacuum-time=7d
+  else
+    echo "· journalctl indisponível (sem systemd) — pulando logs"
+  fi
+
+  # (N) evita o erro de NOMATCH; sem arquivos, nem chamamos o rm
+  local -a thumbs
+  thumbs=("$HOME"/.cache/thumbnails/*(N))
+  (( ${#thumbs} )) && rm -rf -- "${thumbs[@]}"
   echo "✅ Sistema limpo!"
 }
 
@@ -68,10 +86,18 @@ updateall() {
   echo "🔄 Atualizando TUDO — o que não estiver instalado é pulado"
   echo "════════════════════════════════════════════════════"
 
-  # 1) Sistema (apt)
+  # 1) Sistema — o gerenciador é o da SUA distro, não um apt fixo
   echo ""
-  echo "📦 1/12 · Sistema (apt)"
-  sudo apt update && sudo apt upgrade -y && sudo apt autoremove -y
+  local PM_SISTEMA
+  PM_SISTEMA=$(_zest-pm-detect)
+  if [[ -n "$PM_SISTEMA" ]]; then
+    echo "📦 1/12 · Sistema ($PM_SISTEMA)"
+    _zest-pm-update  "$PM_SISTEMA" || true
+    _zest-pm-upgrade "$PM_SISTEMA" || true
+    _zest-pm-autoremove "$PM_SISTEMA" || true
+  else
+    echo "📦 1/12 · Sistema — nenhum gerenciador conhecido (apt/dnf/pacman/zypper/apk), pulando"
+  fi
 
   # 2) Oh My Zsh + plugins (pulam se não houver Oh My Zsh)
   if (( $+functions[omz] )); then
@@ -102,7 +128,7 @@ updateall() {
   echo ""
   echo "🐍 6/12 · pip"
   if command -v pip3 >/dev/null 2>&1; then
-    python3 -m pip install --upgrade pip --quiet 2>/dev/null || echo "   pip do sistema é protegido pelo Debian — use uv/pipx para ferramentas"
+    python3 -m pip install --upgrade pip --quiet 2>/dev/null || echo "   pip do sistema é protegido pela distro (PEP 668) — use uv/pipx para ferramentas"
   else
     echo "   não instalado — pulando"
   fi
@@ -115,7 +141,7 @@ updateall() {
   # 8) Snap (aplicativos)
   echo ""
   echo "📦 8/12 · Snap"
-  if command -v snap >/dev/null 2>&1; then sudo snap refresh; else echo "   não instalado — pulando"; fi
+  if command -v snap >/dev/null 2>&1; then _zest-sudo snap refresh; else echo "   não instalado — pulando"; fi
 
   # 9) npm (pacotes globais)
   echo ""
@@ -124,8 +150,8 @@ updateall() {
     if [[ -w "$(npm prefix -g)" ]]; then
       npm update -g
     else
-      echo "   (pacotes globais no sistema — usando sudo)"
-      sudo npm update -g
+      echo "   (pacotes globais no sistema — elevando privilégio)"
+      _zest-sudo npm update -g
     fi
   else
     echo "   não instalado — pulando"

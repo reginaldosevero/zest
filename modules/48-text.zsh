@@ -26,7 +26,11 @@ _zest-clip-get() {
 # spell -x               lê da área de transferência
 # spell -i <arquivo>     corrige uma a uma, interativo
 spell() {
-  command -v aspell >/dev/null 2>&1 || { echo "· aspell não instalado: sudo apt install aspell aspell-pt-br"; return 1; }
+  # a dica de instalação segue o gerenciador da máquina (nada de 'sudo apt' fixo)
+  (( $+commands[aspell] )) || {
+    echo "· aspell não instalado: $(_zest-pm-hint "$(_zest-pm-detect)" aspell aspell-pt-br)"
+    return 1
+  }
 
   # dicionário: pt_BR se instalado, senão padrão do sistema (array = 2 palavras)
   local -a dict

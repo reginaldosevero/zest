@@ -10,6 +10,8 @@ if command locale -a 2>/dev/null | grep -qi '^C\.utf8$'; then
 fi
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# detecção de distro (lib/distro.sh) — usada no passo 1 e no install-tool
+source "$REPO_DIR/lib/distro.sh"
 DEST="$HOME/.config/zest"
 ZSHRC="$HOME/.zshrc"
 WITH_PLUGINS=0
@@ -34,14 +36,7 @@ if [[ $WITH_PLUGINS == 1 && ! -d "$HOME/.oh-my-zsh" ]]; then
 fi
 
 if (( ${#NEED[@]} )); then
-  PM=""; PM_INSTALL=""
-  if   command -v apt-get >/dev/null 2>&1; then PM="apt";    PM_INSTALL="apt-get install -y"
-  elif command -v dnf     >/dev/null 2>&1; then PM="dnf";    PM_INSTALL="dnf install -y"
-  elif command -v pacman  >/dev/null 2>&1; then PM="pacman"; PM_INSTALL="pacman -Sy --noconfirm"
-  elif command -v zypper  >/dev/null 2>&1; then PM="zypper"; PM_INSTALL="zypper install -y"
-  elif command -v apk     >/dev/null 2>&1; then PM="apk";    PM_INSTALL="apk add"
-  fi
-
+  PM=$(zest_pm_detect) || PM=""
   if [[ -z "$PM" ]]; then
     echo "❌ Faltam: ${NEED[*]} — e não encontrei apt/dnf/pacman/zypper/apk para instalá-los."
     echo "   Instale manualmente e rode este instalador de novo."
@@ -49,19 +44,19 @@ if (( ${#NEED[@]} )); then
   fi
 
   echo "📦 Faltam dependências: ${NEED[*]}"
-  echo "   Instalando com $PM — pode pedir sua senha (sudo) ou a do root (su)…"
-  if [[ "$PM" == "apt" ]]; then
-    if command -v sudo >/dev/null 2>&1; then sudo apt-get update -q || true
-    else su -c 'apt-get update -q' || true; fi
-  fi
-  if command -v sudo >/dev/null 2>&1 && sudo $PM_INSTALL "${NEED[@]}"; then
-    echo "✓ dependências instaladas (via sudo)"
-  elif su -c "$PM_INSTALL ${NEED[*]}"; then
-    echo "✓ dependências instaladas (via su)"
+  echo "   Gerenciador detectado: $PM — pode pedir sua senha (sudo) ou a do root (su)…"
+  zest_pm_update "$PM" || true
+  if zest_pm_install "$PM" "${NEED[@]}"; then
+    echo "✓ dependências instaladas (via $PM)"
   else
     echo "❌ Não consegui instalar automaticamente. Faça manualmente e rode de novo:"
-    echo "   sudo $PM_INSTALL ${NEED[*]}"
-    echo "   ou:  su -c '$PM_INSTALL ${NEED[*]}'"
+    case "$PM" in
+      apt-get) echo "   sudo apt-get install ${NEED[*]}" ;;
+      dnf)     echo "   sudo dnf install ${NEED[*]}" ;;
+      pacman)  echo "   sudo pacman -Sy --noconfirm ${NEED[*]}" ;;
+      zypper)  echo "   sudo zypper install -y ${NEED[*]}" ;;
+      apk)     echo "   sudo apk add ${NEED[*]}" ;;
+    esac
     exit 1
   fi
 fi
