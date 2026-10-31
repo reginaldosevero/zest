@@ -86,4 +86,8 @@ elif (( FULL == 1 )); then
   echo "   Ferramentas em ~/.local/bin (bat, fzf, rg...) NÃO foram tocadas."
   echo "   Para apagá-las também:"
   echo "     rm -f ~/.local/bin/{fzf,zoxide,atuin,mise,jq,yq,direnv,eza,rg,fd,bat,delta,lazygit,duf,tldr}"
+  echo ""
+  echo "   Pacotes instalados com 'zest add --prefer-pm' são do SISTEMA e continuam"
+  echo "   aí de propósito: remover pacote da distro é decisão sua, não do Zest."
+  echo "   Para remover um deles, use o gerenciador da distro (ex.: dnf remove jq)."
 fi
