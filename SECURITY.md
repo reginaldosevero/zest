@@ -10,11 +10,13 @@
 
 ## Reporting a Vulnerability
 
-We take security seriously. If you find a vulnerability, please report it responsibly:
+Levamos segurança a sério. Se você encontrar uma vulnerabilidade, reporte de forma responsável:
 
-1. **Email**: rsluna@live.com
-2. **GitHub Security Advisory**: https://github.com/reginaldosevero/zest/security/advisories/new
+1. **Denúncia privada no GitHub** (canal principal): [Security advisory](https://github.com/reginaldosevero/zest/security/advisories/new) — abre uma conversa privada com o mantenedor, e nada é publicado até o fix sair
+2. **Perfil no GitHub**: se o canal acima não funcionar, use "Report abuse" → "Report a security vulnerability" em [github.com/reginaldosevero](https://github.com/reginaldosevero)
 3. **Lightning (se preferir)**: nados@speed.app
+
+> Não abra issue pública descrevendo a vulnerabilidade. Assim o problema vira receita para exploração antes de existir correção.
 
 ### O que incluir na denúncia
 

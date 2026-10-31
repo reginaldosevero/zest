@@ -35,7 +35,7 @@ Este código de conduta se aplica a todos os espaços do projeto — issues, pul
 
 ## Como reportar
 
-Casos de abuso, assédio ou comportamento inaceitável devem ser reportados abrindo uma issue ou, quando o caso envolver quem mantém o projeto, por email para rsluna@live.com. Toda reclamação será lida e investigada com empenho e de forma justa.
+Casos de abuso, assédio ou comportamento inaceitável devem ser reportados abrindo uma issue no repositório ou, quando o caso envolver quem mantém o projeto, por canal privado: denúncia de segurança pelo [formulário de Security advisory](https://github.com/reginaldosevero/zest/security/advisories/new) (conversa privada) ou pelo canal privado listado no [SECURITY.md](SECURITY.md). Toda reclamação será lida e investigada com empenho e de forma justa.
 
 A equipe do projeto tem o direito e o dever de manter sigilo sobre a pessoa que reporta, assim como a de qualquer pessoa acusada.
 
