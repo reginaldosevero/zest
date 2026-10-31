@@ -458,11 +458,8 @@ if [[ $WITH_PLUGINS == 1 ]]; then
   )
 fi
 
-# Entry-point de cada plugin: o caminho .zsh RELATIVO ao repositório que o
-# Oh My Zsh deve carregar. O Omz exige um ARQUIVO .zsh em custom/plugins/
-# (um DIRETÓRIO com o nome do plugin é ignorado — foi o bug: as sugestões
-# sumiram porque o clone inteiro foi para custom/plugins/zsh-autosuggestions/
-# em vez de custom/plugins/zsh-autosuggestions.zsh).
+# Entry-point de cada plugin: o arquivo .plugin.zsh que o Oh My Zsh carrega.
+# Omz espera: $ZSH_CUSTOM/plugins/<nome>/<nome>.plugin.zsh
 declare -A PLUGIN_ENTRY=(
   [zsh-autosuggestions]="zsh-autosuggestions.zsh"
   [zsh-syntax-highlighting]="zsh-syntax-highlighting.zsh"
@@ -477,11 +474,11 @@ plugin_entry() {
     printf '%s' "$dir/${PLUGIN_ENTRY[$want]}"
     return 0
   fi
-  f=$(find "$dir" -maxdepth 2 -name "$want.zsh" -o -name "${want%-*}.zsh" 2>/dev/null | head -1)
+  f=$(find "$dir" -maxdepth 2 -name "$want.plugin.zsh" -o -name "$want.zsh" -o -name "${want%-*}.plugin.zsh" -o -name "${want%-*}.zsh" 2>/dev/null | head -1)
   [[ -n "$f" ]] && printf '%s' "$f" || return 1
 }
 
-# 6a) Com Oh My Zsh: plugins em custom/plugins + lista plugins=()
+# 6a) Com Oh My Zsh: plugins em custom/plugins/<nome>/ + lista plugins=()
 if [[ -d "$HOME/.oh-my-zsh" ]]; then
   CUST="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins"
   mkdir -p "$CUST"
@@ -490,10 +487,10 @@ if [[ -d "$HOME/.oh-my-zsh" ]]; then
       read -r _url _ref <<< "${REPOS[$p]}"
       git clone --depth 1 --branch "$_ref" -q "$_url" "$CUST/$p" && echo "✓ plugin clonado: $p ($_ref)"
     fi
-    # entry-point em ARQUIVO .zsh (o Omz ignora o diretório)
+    # Garante <nome>.plugin.zsh dentro do diretório do plugin (Omz carrega daqui)
     ep=$(plugin_entry "$CUST/$p" "$p") || { echo "   ⚠ entry-point de $p não encontrado"; continue; }
-    if [[ ! -f "$CUST/$p.zsh" ]]; then
-      cp "$ep" "$CUST/$p.zsh" && echo "✓ entry-point: $CUST/$p.zsh"
+    if [[ ! -f "$CUST/$p/$p.plugin.zsh" ]]; then
+      cp "$ep" "$CUST/$p/$p.plugin.zsh" && echo "✓ entry-point: $CUST/$p/$p.plugin.zsh"
     fi
   done
   PYTHONIOENCODING=utf-8 python3 - "$ZSHRC" "${!REPOS[@]}" <<'PYEOF'
