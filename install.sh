@@ -466,7 +466,7 @@ fi
 declare -A PLUGIN_ENTRY=(
   [zsh-autosuggestions]="zsh-autosuggestions.zsh"
   [zsh-syntax-highlighting]="zsh-syntax-highlighting.zsh"
-  [zsh-completions]="src/zsh-completions.zsh"
+  [zsh-completions]="zsh-completions.plugin.zsh"
   [zsh-history-substring-search]="zsh-history-substring-search.zsh"
   [zsh-autopair]="autopair.zsh"
 )
