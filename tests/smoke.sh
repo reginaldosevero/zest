@@ -106,5 +106,79 @@ else
   echo "  ✗ pacote que instala binário com outro nome:$BADPKG"; FAIL=1
 fi
 
+# 8) o doctor testa o BINÁRIO real, não o nome do comando do zest add
+#    (ripgrep → rg, tldr → tealdeer). Sem isso o doctor dizia "zest add
+#    ripgrep" mesmo com o rg em ~/.local/bin.
+#    Teste de ponta a ponta: HOME vazio (sem .local/bin no PATH) — todos
+#    devem dizer "não instalado", e o doctor não deve dizer "zest add rg"
+#    (que não é um comando do Zest, é o binário real).
+SMOKE_HOME="$(mktemp -d)"
+DOCTOR_OUT=$(env -u ZEST_HOME HOME="$SMOKE_HOME" bash bin/zest doctor 2>&1)
+if echo "$DOCTOR_OUT" | grep -q "zest add rg"; then
+  echo "  ✗ doctor sugere 'zest add rg' (binário real, não é comando do Zest)"; FAIL=1
+elif echo "$DOCTOR_OUT" | grep -qE "→ não instalado"; then
+  echo "  ✓ doctor testa o binário real (segunda coluna de tools.list)"
+else
+  echo "  ✗ doctor não listou nenhuma ferramenta"; FAIL=1
+fi
+rm -rf "$SMOKE_HOME"
+
+# 9) a pergunta do instalador nunca lê do stdin
+#    Em "curl … | bash" o stdin É o script: um `read` cru engole o resto da
+#    instalação e nada é perguntado (foi o que calou a escolha do prompt).
+READ_CRU=$(awk '
+  /^ask\(\) \{/ { in_ask = 1 }
+  in_ask && /^\}/ { in_ask = 0; next }
+  in_ask { next }
+  /^[[:space:]]*(IFS=[^[:space:]]+[[:space:]]+)?read( -[a-zA-Z]+)+/ && $0 !~ /\/dev\/tty/ && $0 !~ /<</ \
+    { print NR ": " $0 }
+' install.sh)
+if [[ -z "$READ_CRU" ]] && grep -q 'read -r -p "$1" _resposta < /dev/tty' install.sh; then
+  echo "  ✓ pergunta via /dev/tty (funciona em curl|bash)"
+else
+  echo "  ✗ install.sh lê do stdin (quebra curl|bash) — use ask():$READ_CRU"; FAIL=1
+fi
+
+# 10) o doctor cobra o shell padrão
+#     Em máquina nova o login costuma ser bash: sem essa checagem o diagnóstico
+#     dizia "tudo saudável" com o Zest morto em todo terminal novo.
+env -u ZEST_HOME ZEST_REPO="$PWD" bash bin/zest doctor 2>&1 \
+  | grep -q "· shell padrão" \
+  && echo "  ✓ doctor checa o shell padrão" \
+  || { echo "  ✗ doctor não checa o shell padrão"; FAIL=1; }
+
+# 11) zest prompt aceita os 4 estilos e recusa os outros
+PROMPT_HOME="$(mktemp -d)"
+for estilo in zest compact plain off; do
+  env -u ZEST_HOME HOME="$PROMPT_HOME" bash bin/zest prompt "$estilo" >/dev/null 2>&1 \
+    || { echo "  ✗ zest prompt $estilo falhou"; FAIL=1; }
+  [[ "$(cat "$PROMPT_HOME/.config/zest/prompt" 2>/dev/null)" == "$estilo" ]] \
+    || { echo "  ✗ zest prompt $estilo não gravou o estilo"; FAIL=1; }
+done
+env -u ZEST_HOME HOME="$PROMPT_HOME" bash bin/zest prompt neon >/dev/null 2>&1 \
+  && { echo "  ✗ zest prompt aceitou estilo inexistente"; FAIL=1; } \
+  || echo "  ✓ zest prompt valida os estilos"
+rm -rf "$PROMPT_HOME"
+
+# 12) a segunda coluna de tools.list é só o nome do binário
+#     Comento na mesma linha virava parte do nome testado ("rg # comentário"),
+#     e aí todo 'zest add' falha com "desconhecida: <nome>".
+BADTBL=$(awk '!/^[[:space:]]*#/ && NF > 0 && $2 != "" && $2 !~ /^[A-Za-z0-9._@-]+$/ { print FILENAME NR ": " $0 }' lib/tools.list)
+if [[ -z "$BADTBL" ]]; then
+  echo "  ✓ tools.list: segunda coluna é nome de binário limpo"
+else
+  echo "  ✗ tools.list com coluna 2 suja:$BADTBL"; FAIL=1
+fi
+
+# 13) o instalador instala a lista inteira, não nomes escritos à mão
+#     (nomes soltos no install.sh ficam para trás quando a lista cresce — foi
+#      assim que uv e thefuck ficaram de fora na instalação completa)
+if grep -q 'REPO_DIR/lib/tools.list' install.sh \
+  && ! grep -qE 'install-tool\.sh[[:space:]]+fzf' install.sh; then
+  echo "  ✓ install.sh instala a lista de tools.list"
+else
+  echo "  ✗ install.sh tem lista de ferramentas à mão (use tools.list)"; FAIL=1
+fi
+
 echo "════════════════════"
 (( FAIL == 0 )) && echo "✅ smoke test passou" || { echo "❌ smoke test falhou"; exit 1; }

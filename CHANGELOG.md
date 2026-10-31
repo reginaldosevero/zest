@@ -1,6 +1,40 @@
 # Changelog
 
-## 0.3.0 — 2026-10-30
+## 0.3.1 — 2026-10-31
+
+### Correção
+- **`zest doctor` testa o binário real** (segunda coluna de `tools.list`).
+  Antes, `command -v ripgrep` falhava porque o binário é `rg` — o doctor
+  dizia "zest add ripgrep" mesmo com o rg em `~/.local/bin`. Agora
+  testa `$_b`, e o smoke tem uma guarda nova que procura "zest add rg"
+  (que não é um comando do Zest).
+- **`install.sh` troca o shell padrão para zsh** em máquina nova. Antes,
+  o instalador não tocava no login shell: em um terminal novo o bash
+  abria e o Zest nunca carregava. Agora pergunta com `ask()` (funciona
+  em `curl … | bash`), tenta o chsh em ordem de silêncio (já autorizado
+  → PAM de terminal → sudo sem senha → sudo com senha) e, se nenhuma
+  der certo, mostra a linha pronta `sudo chsh -s <zsh> <usuário>`.
+- **`install.sh` não lê do stdin.** Em `curl … | bash` o stdin é o
+  próprio script: um `read` cru engolia o resto e nada era perguntado
+  (foi o que calou a escolha do prompt). Agora a pergunta vai para
+  `/dev/tty` (ou devolve 1 sem terminal, default = `zest`).
+- **`install.sh` cai com mensagem clara em `curl … | bash`.** Sem
+  `BASH_SOURCE` o script não encontra `lib/` e estourava um erro
+  confuso; agora diz "clone o repo e rode `./install.sh`".
+- **`zest prompt`** — mostra ou troca o estilo (zest/compact/plain/off)
+  sem abrir o arquivo na mão. Com outro framework (Oh My Zsh/starship)
+  avisa que não sobrescreve.
+- **`doctor` cobra o shell padrão.** Em máquina nova o login costuma
+  ser bash, e o diagnóstico dizia "tudo saudável" com o Zest morto em
+  todo terminal novo.
+
+### Interno
+- `tests/smoke.sh` ganhou guardas: pergunta via `/dev/tty`, doctor checa
+  shell padrão, `zest prompt` aceita os 4 estilos e recusa os outros,
+  segunda coluna de `tools.list` é nome de binário limpo e o install.sh
+  instala a lista de `tools.list` (não nomes soltos).
+- `uninstall.sh` remove também o bloco do Zest do `.bashrc` (quando o
+  login ainda era bash), devolvendo o arquivo byte a byte.
 
 ### Novo
 - **Instalação padrão agora é completa.** Num `./install.sh` de uma máquina

@@ -38,6 +38,19 @@ else
   echo "· .zshrc sem bloco do Zest"
 fi
 
+# 1b) bloco do Zest no .bashrc (quando o shell padrão ainda era bash)
+if [[ -f "$HOME/.bashrc" ]] && grep -q ">>> zest >>>" "$HOME/.bashrc"; then
+  TMP="$(mktemp)"
+  awk '
+    /^# >>> zest >>>$/ { skip = 1; next }
+    /^# <<< zest <<<$/ { skip = 0; next }
+    skip { next }
+    /^[[:space:]]*$/ { blanks++; next }
+    { while (blanks > 0) { print ""; blanks-- } print }
+  ' "$HOME/.bashrc" > "$TMP" && cat "$TMP" > "$HOME/.bashrc" && rm -f "$TMP"
+  echo "✓ bloco do Zest removido do .bashrc"
+fi
+
 # 2) diretório de módulos (sempre removido)
 if [[ -d "$DEST" ]]; then
   rm -rf "$DEST" && echo "✓ módulos removidos de $DEST"

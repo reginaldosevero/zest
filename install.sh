@@ -9,7 +9,19 @@ if command locale -a 2>/dev/null | grep -qi '^C\.utf8$'; then
   export LANG=C.UTF-8 LC_ALL=C.UTF-8
 fi
 
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Onde estão os arquivos do Zest. Lendo de stdin ("curl … | bash") não há
+# BASH_SOURCE, e o instalador precisa de lib/ e modules/ — sem eles a instalação
+# não tem como continuar, então a mensagem diz o caminho certo em vez de
+# estourar "BASH_SOURCE[0]: unbound variable".
+ZEST_SRC="${BASH_SOURCE[0]:-${BASH_SOURCE[1]:-$0}}"
+REPO_DIR="$(cd -- "$(dirname -- "$ZEST_SRC")" >/dev/null 2>&1 && pwd)" || REPO_DIR=""
+if [[ ! -f "$REPO_DIR/lib/tools.list" ]]; then
+  echo "❌ Não encontrei os arquivos do Zest ao lado deste script."
+  echo "   O instalador precisa do repositório (lib/, modules/). Rode assim:"
+  echo "     git clone https://github.com/reginaldosevero/zest.git"
+  echo "     cd zest && ./install.sh"
+  exit 1
+fi
 # detecção de distro (lib/distro.sh) — usada no passo 1 e no install-tool
 source "$REPO_DIR/lib/distro.sh"
 DEST="$HOME/.config/zest"
@@ -25,31 +37,58 @@ for arg in "$@"; do
   esac
 done
 
+# Pergunta que funciona até em "curl ... | bash".
+#   Nesse modo o stdin É o pipe com o próprio script: um `read` dali engoliria o
+#   resto da instalação e nada seria perguntado. Então, quando o stdin não é um
+#   terminal, a leitura vai para /dev/tty (o terminal de verdade). Sem terminal
+#   nenhum (CI, cron), devolve 1 e quem chama usa o padrão — nunca lê do stdin.
+ask() {
+  local _resposta
+  if [[ -t 0 ]]; then
+    IFS= read -r -p "$1" _resposta || return 1
+  elif [[ -c /dev/tty ]]; then
+    IFS= read -r -p "$1" _resposta < /dev/tty || return 1
+  else
+    return 1
+  fi
+  printf '%s' "$_resposta"
+}
+
 echo "🌶️  Zest — instalação"
 echo "═══════════════════════════════════════"
 
 # 0) escolha do prompt — o que o terminal vai parecer
-#   (só pergunta em terminal interativo; em CI, o default é "zest")
+#   (pergunta quando há terminal de verdade, inclusive via curl|bash; sem
+#    terminal — CI — o default é "zest")
 mkdir -p "$DEST"
-if [[ -t 0 && -z "${ZEST_PROMPT:-}" && ! -f "$DEST/prompt" ]]; then
+# Quem já tem Oh My Zsh, starship ou powerlevel10k não precisa de prompt novo:
+# a 22-prompt.zsh também detecta isso, mas perguntaria à toa.
+HAS_PROMPT=0
+if [[ -n "${ZSH:-}" || -n "${STARSHIP_SESSION_KEY:-}" || -d "$HOME/.oh-my-zsh" ]] \
+   || ps -o comm= 2>/dev/null | grep -q powerlevel10k; then
+  HAS_PROMPT=1
+fi
+
+if [[ -z "${ZEST_PROMPT:-}" && ! -f "$DEST/prompt" && $HAS_PROMPT == 0 ]]; then
   echo ""
   echo "🎨 Prompt do terminal"
   echo "   O Zest não exige Oh My Zsh, então o prompt vem dele mesmo."
-  echo "   (Se já tem Oh My Zsh, starship ou powerlevel10k, o Zest não toca em nada.)"
   echo ""
-  echo "   1) zest   ╭─usuário@máquina ~/dir ❯  com status do git  (recomendado)"
+  echo "   1) zest     ╭─usuário@máquina ~/dir ❯  com status do git  (recomendado)"
   echo "   2) compact  ~/dir ❯  (uma linha, leve)"
-  echo "   3) plain   usuário@máquina ~/dir$  (sem cor)"
-  echo "   4) off     não mexo no prompt (você configura depois)"
-  printf "   Qual? [1] "
-  read -r _zest_escolha
-  case "${_zest_escolha:-1}" in
-    2) echo "compact" > "$DEST/prompt" ;;
-    3) echo "plain"    > "$DEST/prompt" ;;
-    4) echo "off"      > "$DEST/prompt" ;;
-    *) echo "zest"      > "$DEST/prompt" ;;
-  esac
-  unset _zest_escolha
+  echo "   3) plain    usuário@máquina ~/dir\$  (sem cor)"
+  echo "   4) off      não mexo no prompt (você configura depois)"
+  if _escolha=$(ask "   Qual? [1] "); then
+    case "${_escolha:-1}" in
+      2) echo "compact" > "$DEST/prompt" ;;
+      3) echo "plain"   > "$DEST/prompt" ;;
+      4) echo "off"     > "$DEST/prompt" ;;
+      *) echo "zest"    > "$DEST/prompt" ;;
+    esac
+  else
+    echo "zest" > "$DEST/prompt"
+  fi
+  unset _escolha
 fi
 
 # 1) dependências — o Zest instala SOZINHO o que falta (sudo, ou su no Debian cru)
@@ -229,30 +268,86 @@ else
   echo "· ferramentas puladas (--no-tools)"
 fi
 
-# 8) shell padrão — se ainda for bash (ou outro), o Zest nunca carrega num terminal novo
+# 8) shell padrão — se ainda for bash (ou outro), o Zest nunca carrega num
+#    terminal novo. Em máquina nova esse é o caso comum, então o instalador
+#    resolve sozinho. Trocar o shell da conta é mudança no sistema: o chsh pede
+#    a senha do próprio usuário, por isso as tentativas vão da mais silenciosa
+#    (já autorizada) até pedir a senha — e sempre sobra a instrução pronta.
 CURSHELL=$(getent passwd "$(id -un)" 2>/dev/null | cut -d: -f7)
 [[ -z "$CURSHELL" ]] && CURSHELL="${SHELL:-/bin/bash}"
 ZSHBIN="$(command -v zsh)"
-if [[ "$CURSHELL" != "$ZSHBIN" ]]; then
+SHELL_OK=0
+[[ "$CURSHELL" == "$ZSHBIN" ]] && SHELL_OK=1
+
+if (( ! SHELL_OK )); then
   echo ""
-  echo "⚠️  Seu shell padrão é $CURSHELL — os comandos do Zest SÓ funcionam no zsh!"
-  if [[ -t 0 ]]; then
-    read -r -p "   Trocar o shell padrão para zsh agora? [S/n] " TROCA
-    if [[ ! "$TROCA" =~ ^[nN] ]]; then
-      if chsh -s "$ZSHBIN" 2>/dev/null; then
-        echo "✓ Shell padrão alterado! Feche e abra o terminal para entrar no zsh."
-      else
-        echo "   O chsh pediu algo que não deu aqui — com root funciona direto:"
-        echo "     su -c \"chsh -s $ZSHBIN $(id -un)\""
+  echo "🐚 Shell padrão: $CURSHELL — o Zest só carrega no zsh"
+  TROCA="s"
+  if _resposta=$(ask "   Trocar o shell padrão para zsh? [S/n] "); then
+    TROCA="$_resposta"
+  fi
+  if [[ ! "$TROCA" =~ ^[nN] ]]; then
+    USER_NAME=$(id -un)
+    # a) alguns sistemas (e todo ambiente sem PAM de senha) aceitam direto
+    if chsh -s "$ZSHBIN" 2>/dev/null; then
+      SHELL_OK=1
+    # b) com terminal de verdade o chsh pede a senha do próprio usuário
+    elif [[ -c /dev/tty ]] && chsh -s "$ZSHBIN" < /dev/tty 2>/dev/null; then
+      SHELL_OK=1
+    # c) sudo sem senha (containers e CI costumam ter)
+    elif command -v sudo >/dev/null 2>&1 \
+      && sudo -n chsh -s "$ZSHBIN" "$USER_NAME" 2>/dev/null; then
+      SHELL_OK=1
+    # d) sudo pedindo a senha — a troca já foi aprovada na pergunta acima
+    elif [[ -c /dev/tty ]] && command -v sudo >/dev/null 2>&1; then
+      echo "   Último caminho: sudo (ele pede sua senha)"
+      if sudo chsh -s "$ZSHBIN" "$USER_NAME" < /dev/tty; then
+        SHELL_OK=1
       fi
     fi
+    if (( SHELL_OK )); then
+      echo "✓ Shell padrão alterado para zsh — feche e abra o terminal."
+    else
+      echo "⚠️  Não consegui trocar o shell automaticamente. Uma linha resolve:"
+      echo "       sudo chsh -s $ZSHBIN $USER_NAME"
+      echo "   (ou, sem trocar nada, entre no zsh com:  $ZSHBIN -l)"
+    fi
   else
-    echo "   Troque com:  chsh -s $ZSHBIN   (ou: su -c \"chsh -s $ZSHBIN $(id -un)\")"
+    echo "   Mantive $CURSHELL — para trocar depois:  chsh -s $ZSHBIN"
   fi
 fi
 
-echo "✅ Pronto! Ative com:  source ~/.zshrc   (ou abra um terminal novo)"
+# 9) PATH em shell não-zsh — se a conta ainda abre bash, o terminal novo não vê
+#    as ferramentas em ~/.local/bin nem o ~/.zprofile. O bloco no ~/.bashrc é a
+#    rede de segurança: os comandos funcionam mesmo enquanto a conta não vira
+#    zsh. O uninstall remove o bloco e devolve o arquivo como estava.
+#    (Aqui só PATH: os módulos do Zest são código zsh e não podem ser carregados
+#     dentro do bash.)
+BASHRC="$HOME/.bashrc"
+if (( ! SHELL_OK )); then
+  [[ -f "$BASHRC" ]] || : > "$BASHRC"
+  if ! grep -q ">>> zest >>>" "$BASHRC" 2>/dev/null; then
+    cat >> "$BASHRC" <<'ZESTEOF'
+
+# >>> zest >>>
+# Ferramentas do Zest (fzf, rg, fd, bat, eza, delta, zoxide, jq, yq, duf,
+# lazygit, direnv, tldr, atuin, mise, uv, thefuck) ficam em ~/.local/bin.
+export PATH="$HOME/.local/bin:$PATH"
+# <<< zest <<<
+ZESTEOF
+    echo "✓ PATH do Zest adicionado ao ~/.bashrc"
+  else
+    echo "· bloco do Zest já estava no ~/.bashrc"
+  fi
+fi
+
+echo ""
+echo "✅ Pronto! Ative com:  exec zsh   (ou feche e abra o terminal)"
 echo "   Diagnóstico:        zest doctor"
 echo "   Ferramentas:        fzf · rg · fd · bat · eza · delta · zoxide · jq · yq · duf · lazygit · direnv · tldr · atuin · mise · uv · thefuck"
-echo "   Prompt:             $(cat "$DEST/prompt" 2>/dev/null || echo off) (troque com: ZEST_PROMPT=compact|plain|off)"
-echo "   Ferramentas (opcional, sem root):  zest add fzf bat eza ripgrep fd delta lazygit duf jq yq direnv tldr zoxide atuin mise"
+if [[ -f "$DEST/prompt" ]]; then
+  echo "   Prompt:             $(cat "$DEST/prompt") (troque com: zest prompt zest|compact|plain|off)"
+else
+  echo "   Prompt:             o que você já usa (Oh My Zsh/starship/p10k)"
+fi
+echo "   Desfazer tudo:      ./uninstall.sh"

@@ -1,6 +1,6 @@
 # 🌶️ Zest — o tempero do seu terminal
 
-![release](https://img.shields.io/badge/release-v0.3.0-8A2BE2) ![CI](https://github.com/reginaldosevero/zest/actions/workflows/ci.yml/badge.svg) ![licença](https://img.shields.io/github/license/reginaldosevero/zest) ![plataforma](https://img.shields.io/badge/plataforma-qualquer_Linux-success) ![shell](https://img.shields.io/badge/shell-zsh-red) ![root](https://img.shields.io/badge/root-n%C3%A3o_necess%C3%A1rio-brightgreen) ![idioma](https://img.shields.io/badge/docs-Portugu%C3%AAs-blue)
+![release](https://img.shields.io/badge/release-v0.3.1-8A2BE2) ![CI](https://github.com/reginaldosevero/zest/actions/workflows/ci.yml/badge.svg) ![licença](https://img.shields.io/github/license/reginaldosevero/zest) ![plataforma](https://img.shields.io/badge/plataforma-qualquer_Linux-success) ![shell](https://img.shields.io/badge/shell-zsh-red) ![root](https://img.shields.io/badge/root-n%C3%A3o_necess%C3%A1rio-brightgreen) ![idioma](https://img.shields.io/badge/docs-Portugu%C3%AAs-blue)
 
 **Zsh** produtivo, legível para humanos e instalável em **qualquer distro Linux** — sem precisar de root.
 

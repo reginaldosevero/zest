@@ -4,7 +4,7 @@
 set -u
 ZEST_HOME="${ZEST_HOME:-$HOME/.config/zest}"
 ZEST_REPO="${ZEST_REPO:-$(cd "$(dirname "$0")/.." 2>/dev/null && pwd)}"
-VERSION="0.3.0"
+VERSION="0.3.1"
 
 usage() {
   cat <<'EOF'
@@ -14,52 +14,66 @@ USO: zest <comando>
 
   doctor     Diagnostica o ambiente (ferramentas, módulos, sintaxe)
   update     Atualiza tudo (12 gerenciadores; pula o que não existe)
+  prompt     Mostra ou troca o prompt:  zest prompt compact
+             (estilos: zest · compact · plain · off)
   add        Instala uma ferramenta sem root:  zest add fzf
   version    Mostra a versão
   help       Esta ajuda
 EOF
 }
 
-TOOLS=$(while IFS=$'\t' read -r _nome _bin; do [[ -z "$_nome" ]] && continue; printf '%s ' "$_nome"; done <"$ZEST_HOME/lib/tools.list")
-
 cmd_doctor() {
-  local ok=0 warn=0 MODDIR
+  local ok=0 warn=0 MODDIR n_tools=0
   MODDIR="$ZEST_HOME"
   [[ -d "$MODDIR/modules" ]] || MODDIR="$ZEST_REPO"   # instalado > repositório
   echo "🌶️  Zest doctor — diagnóstico do ambiente"
   echo "═══════════════════════════════════════"
   echo "· módulos de: $MODDIR"
 
-  printf '%-28s' "· zsh"
+  printf '%-32s' "· zsh"
   if command -v zsh >/dev/null 2>&1; then
     echo "✓ $(zsh --version | head -1)"
   else
     echo "✗ FALTANDO (essencial)"; ok=1
   fi
 
-  printf '%-28s' "· Oh My Zsh"
+  printf '%-32s' "· shell padrão"
+  local LOGIN_SHELL
+  LOGIN_SHELL=$(getent passwd "$(id -un)" 2>/dev/null | cut -d: -f7)
+  [[ -z "$LOGIN_SHELL" ]] && LOGIN_SHELL="${SHELL:-?}"
+  if [[ "$LOGIN_SHELL" == *"zsh" ]]; then
+    echo "✓ $LOGIN_SHELL"
+  else
+    # é assim que o Zest "não funciona" em máquina nova: o terminal abre bash
+    echo "→ $LOGIN_SHELL — o Zest não carrega aí. Troque com:"
+    printf '%-32s  sudo chsh -s %s %s\n' "" "$(command -v zsh)" "$(id -un)"
+    warn=$((warn+1))
+  fi
+
+  printf '%-32s' "· Oh My Zsh"
   [[ -d "$HOME/.oh-my-zsh" ]] && echo "✓" || { echo "→ não instalado (opcional, módulos funcionam sem)"; warn=$((warn+1)); }
 
   # lista de ferramentas: fonte única (lib/tools.list), com fallback para o repositório
+  # Cada linha: <nome-para-zest-add>\t<binário-real>. A segunda coluna é o que
+  # command -v testa — sem ela o doctor pergunta "zest add ripgrep" mesmo
+  # tendo o `rg` em ~/.local/bin.
   local TOOLS_FILE
   TOOLS_FILE="$ZEST_HOME/lib/tools.list"
   [[ -f "$TOOLS_FILE" ]] || TOOLS_FILE="$ZEST_REPO/lib/tools.list"
-  TOOLS=$(while IFS=$'\t' read -r _nome _bin; do
-    # ignora linhas em branco e as linhas de cabeçalho do tools.list
-    [[ -z "$_nome" || "$_nome" == \#* || "$_nome" == \(* ]] && continue
-    printf '%s ' "$_nome"
-  done <"$TOOLS_FILE")
-
-  for t in $TOOLS; do
-    printf '%-28s' "· $t"
-    if command -v "$t" >/dev/null 2>&1; then
+  while IFS=$'\t' read -r _t _b; do
+    [[ -z "$_t" || "$_t" == \#* || "$_t" == \(* ]] && continue
+    _b="${_b:-$_t}"
+    n_tools=$((n_tools + 1))
+    printf '%-32s' "· $_t"
+    if command -v "$_b" >/dev/null 2>&1; then
       echo "✓"
     else
-      echo "→ não instalado (zest add $t)"; warn=$((warn+1))
+      echo "→ não instalado (zest add $_t)"; warn=$((warn+1))
     fi
-  done
+  done <"$TOOLS_FILE"
+  unset _t _b
 
-  printf '%-28s' "· gerenciador de pacotes"
+  printf '%-32s' "· gerenciador de pacotes"
   local PM_DOC="" p
   for p in apt-get dnf pacman zypper apk; do
     command -v "$p" >/dev/null 2>&1 && { PM_DOC="$p"; break; }
@@ -71,14 +85,14 @@ cmd_doctor() {
     warn=$((warn+1))
   fi
 
-  printf '%-28s' "· sintaxe dos módulos"
+  printf '%-32s' "· sintaxe dos módulos"
   local bad=0 f
   for f in "$MODDIR"/modules/*.zsh; do
     zsh -n "$f" 2>/dev/null || { bad=1; echo "✗ erro em $f"; }
   done
   (( bad == 0 )) && echo "✓"
 
-  printf '%-28s' "· .zshrc (parse pelo zsh)"
+  printf '%-32s' "· .zshrc (parse pelo zsh)"
   if [[ -f "$HOME/.zshrc" ]] && command -v zsh >/dev/null 2>&1; then
     if zsh -n "$HOME/.zshrc" 2>/dev/null; then
       echo "✓"
@@ -90,7 +104,7 @@ cmd_doctor() {
     echo "→ sem ~/.zshrc"
   fi
 
-  printf '%-28s' "· funções carregam"
+  printf '%-32s' "· funções carregam"
   if ZEST_QUIET=1 zsh -c '
     for f in '"$MODDIR"'/modules/*.zsh(N); do source "$f"; done
     for fn in sysinfo topmem topcpu note todo syncdir updateall portcheck backup_dir worldtime git; do
@@ -101,7 +115,7 @@ cmd_doctor() {
     echo "✗"; ok=1
   fi
 
-  printf '%-28s' "· git (identidade p/ commits)"
+  printf '%-32s' "· git (identidade p/ commits)"
   if command git config --global user.name >/dev/null 2>&1; then
     echo "✓ $(command git config --global user.name)"
   else
@@ -109,7 +123,9 @@ cmd_doctor() {
   fi
 
   echo "═══════════════════════════════════════"
-  echo "Resumo: $(( $(wc -w <<<"$TOOLS") + 1 )) verificações · avisos: $warn"
+  # 8 checagens fora as ferramentas: zsh · shell padrão · Oh My Zsh · gerenciador
+  # de pacotes · sintaxe dos módulos · .zshrc · funções · git
+  echo "Resumo: $(( n_tools + 8 )) verificações · avisos: $warn"
   (( ok == 0 )) && echo "✅ Base saudável!" || echo "❌ Problemas encontrados acima."
 }
 
@@ -124,9 +140,39 @@ cmd_add() {
   bash "$ZEST_HOME/lib/install-tool.sh" "$@"
 }
 
+# Troca o estilo do prompt sem editar arquivo na mão.
+# Com Oh My Zsh/starship/p10k o módulo 22-prompt não sobrescreve nada, então
+# escrever no arquivo seria enganoso — avisamos em vez disso.
+cmd_prompt() {
+  local atual
+  atual=$(cat "$ZEST_HOME/prompt" 2>/dev/null || echo off)
+  case "${1:-}" in
+    zest|compact|plain|off)
+      if [[ -d "$HOME/.oh-my-zsh" || -n "${STARSHIP_SESSION_KEY:-}" ]]; then
+        echo "Você já tem outro prompt (Oh My Zsh/starship) — o Zest não sobrescreve."
+        echo "Para usar o prompt do Zest, desative o outro primeiro."
+        return 0
+      fi
+      mkdir -p "$ZEST_HOME"
+      echo "$1" > "$ZEST_HOME/prompt"
+      echo "✓ prompt = $1 — rode 'exec zsh' (ou abra um terminal novo) para ver"
+      ;;
+    ""|status)
+      echo "prompt atual: $atual"
+      echo "opções:       zest | compact | plain | off"
+      ;;
+    *)
+      echo "estilo inválido: $1"
+      echo "use: zest prompt [zest|compact|plain|off]"
+      return 1
+      ;;
+  esac
+}
+
 case "${1:-help}" in
   doctor)  cmd_doctor ;;
   update)  cmd_update ;;
+  prompt)  shift; cmd_prompt "$@" ;;
   add)     shift; cmd_add "$@" ;;
   version) echo "zest $VERSION" ;;
   help|*)  usage ;;
