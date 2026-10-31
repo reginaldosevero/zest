@@ -27,7 +27,10 @@ PRODUTIVIDADE
   calc 2+3*4           calculadora rápida
   timer 25             cronômetro de 25 segundos
   weather [cidade]     clima atual
-  lua                  fase da lua (arte · lua texto · lua emoji)
+  lua                  fase da lua: 🌕 Lua cheia / Illuminação: 100% / Próxima: …
+lua arte             arte ANSI da lua (cores no terminal)
+lua texto            "Full Moon +"
+lua emoji           🌕
   crypto               Bitcoin/Ethereum em USD e BRL
   stocks TICKER        cotação na bolsa
   news                 manchetes do Hacker News em português
