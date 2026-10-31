@@ -1,0 +1,56 @@
+name: Sugerir um recurso
+description: Uma ideia de comando, módulo ou melhoria para o Zest
+title: 'feat: '
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Antes de propor, confira se já não existe: o comando "ajuda", no terminal, lista tudo que o Zest oferece hoje.
+
+  - type: textarea
+    id: problema
+    attributes:
+      label: Qual problema isso resolve
+      description: Comece pela dificuldade que você tem hoje, não pela solução. "Sempre digito X porque Y" funciona melhor do que "adicione o comando X".
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposta
+    attributes:
+      label: Como você imagina o uso
+      description: Nome do comando, flags, um exemplo de saída.
+      render: shell
+      placeholder: |
+        $ clima agora
+        ☀️  27°C  São Paulo  sensação 29°C  vento 12 km/h
+    validations:
+      required: true
+
+  - type: dropdown
+    id: principios
+    attributes:
+      label: A proposta respeita os princípios do projeto
+      description: Zero root por padrão · aditivo · idempotente · tudo opcional · reversível. Se alguma resposta for "depende", conta no campo abaixo.
+      multiple: true
+      options:
+        - Instala sem pedir root
+        - Não exige ferramenta que nem todo mundo tem
+        - Funciona em mais de uma distribuição
+        - Não sobrescreve nada do .zshrc
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternativas
+    attributes:
+      label: Alternativas que você considerou
+      description: Já existe algo que faz isso? Por que não serve?
+
+  - type: textarea
+    id: implementacao
+    attributes:
+      label: Como você implementaria (opcional)
+      description: Se quiser propor o código, um rascunho de módulo em zsh já ajuda. Fica à vontade para abrir o PR em seguida.

@@ -1,0 +1,95 @@
+name: Reportar um problema
+description: Algo quebrou, deu erro numa distro específica ou funcionou diferente do esperado
+title: 'bug: '
+labels:
+  - bug
+body:
+  - type: textarea
+    id: descricao
+    attributes:
+      label: Descreva o problema
+      description: O que aconteceu, com o texto do erro se ele existir.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproducao
+    attributes:
+      label: Como reproduzir
+      description: Passos na ordem, a partir de uma máquina limpa.
+      placeholder: |
+        1. zest add fzf bat
+        2. abra um terminal novo
+        3. veja ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: esperado
+    attributes:
+      label: O que era esperado
+    validations:
+      required: true
+
+  - type: dropdown
+    id: distro
+    attributes:
+      label: Distribuição
+      options:
+        - Debian
+        - Ubuntu
+        - Fedora
+        - Arch
+        - openSUSE
+        - Alpine
+        - Outra (escreva em Contexto adicional)
+        - Não sei
+    validations:
+      required: true
+
+  - type: textarea
+    id: diagnostico
+    attributes:
+      label: Saída do diagnóstico
+      description: Versão do Zest, do zsh e o resultado do doctor.
+      render: text
+      placeholder: |
+        $ zest version
+        zest 0.2.0
+        $ zsh --version
+        zsh 5.9
+        $ zest doctor
+        ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: limpo
+    attributes:
+      label: Reproduziu em ambiente limpo?
+      description: Reproduzir num container economiza bastante tempo de investigação.
+      options:
+        - 'Sim, em container'
+        - 'Sim, em máquina virtual'
+        - 'Só na minha máquina de sempre'
+        - Ainda não tentei
+    validations:
+      required: true
+
+  - type: dropdown
+    id: sabor
+    attributes:
+      label: Como você instalou
+      options:
+        - './install.sh (zsh puro)'
+        - './install.sh --with-plugins'
+        - './install.sh --with-omz'
+        - 'Outro framework (zinit, antidote…)'
+    validations:
+      required: true
+
+  - type: textarea
+    id: contexto
+    attributes:
+      label: Contexto adicional
+      description: Instalação recente? Atualizou de qual versão? Alguma outra informação que ajude.
