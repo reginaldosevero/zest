@@ -14,6 +14,8 @@ USO: zest <comando>
 
   doctor     Diagnostica o ambiente (ferramentas, módulos, sintaxe)
   update     Atualiza tudo (12 gerenciadores; pula o que não existe)
+  self-update Atualiza o próprio Zest para a última versão no GitHub
+             (sem root: módulos, lib e bin em ~/.config/zest e ~/.local/bin)
   prompt     Mostra ou troca o prompt:  zest prompt compact
              (estilos: zest · compact · plain · off)
   add        Instala uma ferramenta sem root:  zest add fzf
@@ -135,6 +137,47 @@ cmd_update() {
     updateall'
 }
 
+# zest self-update — baixa a versão mais recente do GitHub e atualiza o Zest
+# locally (módulos, lib, bin). Sem root: tudo em $HOME/.config/zest e
+# ~/.local/bin. Usa o redirect do GitHub (api.github.com dão 403).
+cmd_self_update() {
+  local tag url latest tmp
+  tag=$(curl -fsSL --proto '=https' --tlsv1.2 --max-time 30 \
+         -o /dev/null -w '%{url_effective}' \
+         "https://github.com/reginaldosevero/zest/releases/latest" 2>/dev/null) || {
+    echo "❌ Não consegui verificar a versão mais recente (sem internet?)"
+    return 1
+  }
+  latest="${tag##*/releases/tag/}"
+  [[ -n "$latest" ]] || { echo "❌ Não entendi a tag: $tag"; return 1; }
+
+  if [[ "$latest" == "$VERSION" ]]; then
+    echo "✓ Zest já está na versão mais recente ($VERSION)"
+    return 0
+  fi
+  echo "· Versão atual: $VERSION → mais recente: $latest"
+  url="https://github.com/reginaldosevero/zest/archive/refs/tags/$latest.tar.gz"
+  tmp="$(mktemp -d)"
+  if ! curl -fsSL --proto '=https' --tlsv1.2 --max-time 120 -o "$tmp/zest.tar.gz" "$url" 2>/dev/null; then
+    echo "❌ Falha ao baixar $latest"; rm -rf "$tmp"; return 1
+  fi
+  if ! tar xzf "$tmp/zest.tar.gz" -C "$tmp" 2>/dev/null; then
+    echo "❌ Falha ao descompactar"; rm -rf "$tmp"; return 1
+  fi
+  local src
+  src=$(find "$tmp" -maxdepth 1 -mindepth 1 -name 'zest-*' -type d -print -quit)
+  [[ -n "$src" ]] || { echo "❌ Estrutura inesperada no tarball"; rm -rf "$tmp"; return 1; }
+  # atualiza módulos, lib e bin (idempotente, sem tocar no .zshrc)
+  mkdir -p "$ZEST_HOME/modules" "$ZEST_HOME/lib" "$HOME/.local/bin"
+  cp "$src"/modules/*.zsh "$ZEST_HOME/modules/" 2>/dev/null || true
+  [[ -d "$src/lib" ]] && cp -r "$src"/lib/* "$ZEST_HOME/lib/" 2>/dev/null || true
+  cp "$src/bin/zest" "$HOME/.local/bin/.zest.tmp.$$" 2>/dev/null
+  chmod +x "$HOME/.local/bin/.zest.tmp.$$" 2>/dev/null
+  mv -f "$HOME/.local/bin/.zest.tmp.$$" "$HOME/.local/bin/zest" 2>/dev/null
+  rm -rf "$tmp"
+  echo "✅ Zest atualizado para $latest — rode 'exec zsh' (ou abra um terminal novo)"
+}
+
 cmd_add() {
   [[ -f "$ZEST_HOME/lib/install-tool.sh" ]] || { echo "lib/install-tool.sh não encontrado"; exit 1; }
   bash "$ZEST_HOME/lib/install-tool.sh" "$@"
@@ -192,6 +235,7 @@ ZEOF
 case "${1:-help}" in
   doctor)  cmd_doctor ;;
   update)  cmd_update ;;
+  self-update) cmd_self_update ;;
   prompt)  shift; cmd_prompt "$@" ;;
   add)     shift; cmd_add "$@" ;;
   version) echo "zest $VERSION" ;;
