@@ -1,6 +1,6 @@
 # Changelog
 
-## Não lançado (desde 0.3.2)
+## 0.3.3 — 2026-10-31
 
 Correções apontadas por testes em container Debian limpo (root, sem `git`,
 sem `sudo`, sem `ps`). Cada uma tem guarda no `tests/smoke.sh`.
