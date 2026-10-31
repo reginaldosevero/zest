@@ -1,5 +1,53 @@
 # Changelog
 
+## 0.3.2 — 2026-10-31
+
+### Correção
+- **Container limpo sem git, sem tty, sem sudo — o caso real do usuário.**
+  Antes, instalar em uma VM/container zerada rodando apenas `install.sh`
+  (sem `lib/`, sem `git`, sem terminal de controle) dava erro em três
+  pontos e saía com código não-zero. Agora funciona de ponta a ponta:
+  - **`git` não é mais obrigatório.** O download do repo cai para o tarball
+    via `curl`/`wget`, e cada dependência só entra na lista quando o fluxo
+    real a usa: `git` é cobrado apenas com `--with-omz`/`--with-plugins`,
+    e o baixador pede `curl` *ou* `wget` (não os dois).
+  - **`/dev/tty` não vaza mais na tela.** `ask()` e `has_tty()` calam o
+    stderr *antes* de abrir o device (`2>/dev/null < /dev/tty` — as
+    redireções são da esquerda para a direita). Em container sem terminal
+    de controle o `[[ -c /dev/tty ]]` dizia "existe" e o `read` falhava
+    com "No such device or address" no meio da instalação.
+  - **`su` como fallback do `sudo`** em container root sem `sudo`.
+  - **Wrappers autossuficientes** (`pm_run`/`pm_detect`/`pm_install`/
+    `pm_update`): o fallback do checkout sem `lib/distro.sh` não mais
+    quebra por chamar uma função que só existia dentro do `if`.
+- **`ZEST_ORIGIN` (default: o repositório oficial).** Quem mantém um fork
+  aponta para o próprio: `ZEST_ORIGIN=https://github.com/eu/zest ./install.sh`.
+  O nome é deliberadamente `ZEST_ORIGIN` — `ZEST_REPO` já é usado pelo
+  `bin/zest` como o *direatório* do repo, e reutilizá-lo quebraria o CLI.
+- **Shell padrão comparado por `-ef` (device+inode), não por string.**
+  Em distro com usrmerge, `/bin/zsh` e `/usr/bin/zsh` são o mesmo arquivo
+  e o `passwd` pode ter gravado qualquer um dos dois: o instalador
+  dizia "seu shell não é zsh" numa conta que já usava zsh, e tentava
+  `chsh` à toa.
+- **`lib/install-helpers.sh` (novo).** `check_elf`/`unpack_bin`/
+  `finish_bin` vivem em um único lugar: `install-tool.sh` e `tests/smoke.sh`
+  os carregam. Cópias divergem — ver CHANGELOG 0.2.0, quando um `zest_pkg`
+  antigo sobreviveu e passou por cima.
+- **`unpack_bin` extrai cada tarball em `mktemp -d "$T/x-XXXXXX"`** —
+  instalar mais de uma ferramenta na mesma execução já não contaminava a
+  busca do próximo (o `find` podia devolver o binário de um tarball
+  anterior).
+- **`smoke` #14/#15/#16.** #14 usa as funções *reais* (raiz, subpasta,
+  recusa sem-ELF); #15 exige `-ef` em `install.sh`; #16 proíbe `[[ -c
+  /dev/tty ]]` e `< /dev/tty` sem o erro calado.
+
+### Melhorias
+- **`zest add` não exige `git`/`curl` para baixar o Zest.** O `zest_src_resolve`
+  tenta `git clone` e cai para o tarball do branch padrão via `curl` ou
+  `wget` — e a mensagem de falha diz o que falta (git, *ou* curl/wget + gzip).
+
+---
+
 ## 0.3.1 — 2026-10-31
 
 ### Correção

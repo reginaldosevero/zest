@@ -76,6 +76,24 @@ MANUTENÇÃO
   zest doctor          diagnostica o ambiente completo
   zest add <ferramenta> instala ferramenta sem root (zest add fzf)
   zest update          atualiza tudo (mesma coisa que updateall)
+  zest prompt [estilo] mostra ou troca o prompt (zest|compact|plain|off)
+
+EDITORES E DOCKER
+  code                 VS Code (ou code-insiders)
+  zed                  Zed
+  procs                processos (procs, ou ps aux)
+  geoip IP             onde está um IP
+  gfiles [branch]      arquivos alterados no diff
+  histsize N           corta o histórico para as últimas N linhas
+  stopwatch            cronômetro (Enter para parar)
+  date2ts DATA         converte data em timestamp Unix
+  ts2date TS           converte timestamp Unix em data
+  urldecode TEXTO      decodifica texto codificado em URL
+  dcp origem:destino   docker cp para dentro de um container
+  dsh container        docker exec -it /bin/bash (ou /bin/sh)
+  drmi [imagem]        docker rmi por tag
+  dlogsall             logs dos últimos 50 de cada container
+  dbuildpush tag       docker build + push em um só comando
 
 ATALHOS DE TECLADO
   Ctrl+R               busca fuzzy no histórico

@@ -9,6 +9,9 @@
 | 0.1.9   | ✅                 |
 | < 0.1.9 | ❌ (sem suporte)   |
 
+> 0.3.2 (2026-10-31) é a versão atual. Correções de segurança do 0.1.9
+> estão incluídas em 0.3.x e 0.2.x — veja o CHANGELOG.
+
 ## Reporting a Vulnerability
 
 Levamos segurança a sério. Se você encontrar uma vulnerabilidade, reporte de forma responsável:

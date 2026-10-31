@@ -1,6 +1,6 @@
 # 🌶️ Zest — o tempero do seu terminal
 
-![release](https://img.shields.io/badge/release-v0.3.1-8A2BE2) ![CI](https://github.com/reginaldosevero/zest/actions/workflows/ci.yml/badge.svg) ![licença](https://img.shields.io/github/license/reginaldosevero/zest) ![plataforma](https://img.shields.io/badge/plataforma-qualquer_Linux-success) ![shell](https://img.shields.io/badge/shell-zsh-red) ![root](https://img.shields.io/badge/root-n%C3%A3o_necess%C3%A1rio-brightgreen) ![idioma](https://img.shields.io/badge/docs-Portugu%C3%AAs-blue)
+![release](https://img.shields.io/badge/release-v0.3.2-8A2BE2) ![CI](https://github.com/reginaldosevero/zest/actions/workflows/ci.yml/badge.svg) ![licença](https://img.shields.io/github/license/reginaldosevero/zest) ![plataforma](https://img.shields.io/badge/plataforma-qualquer_Linux-success) ![shell](https://img.shields.io/badge/shell-zsh-red) ![root](https://img.shields.io/badge/root-n%C3%A3o_necess%C3%A1rio-brightgreen) ![idioma](https://img.shields.io/badge/docs-Portugu%C3%AAs-blue)
 
 **Zsh** produtivo, legível para humanos e instalável em **qualquer distro Linux** — sem precisar de root.
 
@@ -51,6 +51,8 @@ cd ~/projetos/zest
 
 Na primeira execução, o instalador pergunta qual prompt você quer (1-4, default 1). Só em terminal interativo: em instalações desatendidas ou em CI, o default é `zest`.
 
+**Shell padrão:** se o login ainda for bash (ou outro), o Zest nunca carrega em um terminal novo — e a instalação pergunta se troca o shell para `zsh` (`chsh`). Em container sem `sudo`/tty, pergunta silenciosa e mostra a linha pronta. Comparação por inode (`-ef`): em distro com usrmerge, `/bin/zsh` e `/usr/bin/zsh` são o mesmo arquivo, então quem já usava zsh não era forçado a trocar.
+
 ### Sabores
 
 | Você tem/quer | Comando |
@@ -76,13 +78,13 @@ zest add --prefer-pm jq tealdeer    # instala pelo apt/dnf/pacman/zypper/apk (pe
 
 O pacote só é usado quando ele realmente instala o binário com o nome que o Zest espera. No Debian/Ubuntu, por exemplo, `bat` instala `batcat` e `fd-find` instala `fdfind` — nesses casos o Zest vai direto para o binário de release, em vez de deixar um comando com nome errado parado no sistema.
 
-O pacote só é usado quando ele realmente instala o binário com o nome que o Zest espera. No Debian/Ubuntu, por exemplo, `bat` instala `batcat` e `fd-find` instala `fdfind` — nesses casos o Zest vai direto para o binário de release, em vez de deixar um comando com nome errado parado no sistema.
-
 ## 🧰 Comandos que o Zest traz
 
 > **Não sabe por onde começar?** Digite `ajuda` em qualquer terminal. Sai uma colinha com tudo que o Zest oferece, organizada por categoria. Aceita filtro: `ajuda git`, `ajuda histórico`, `ajuda nota`.
 
 **Diagnóstico:** `sysinfo` · `topmem` · `topcpu` · `df` · `portcheck host porta` · `ipinfo`
+
+**CLI do Zest:** `zest doctor` · `zest update` · `zest add <ferramenta>` · `zest prompt [zest|compact|plain|off]` — mostra ou troca o estilo do prompt sem abrir arquivo algum.
 
 **Produtividade:** `note` / `notes` / `noterm N` / `noteclean` · `todo` / `todos` / `tododone` · `calc 2+2` · `timer 25` · `worldtime` · `weather` · `news` (em português!)
 
@@ -97,6 +99,8 @@ O pacote só é usado quando ele realmente instala o binário com o nome que o Z
 **Histórico do shell:** `histnum` (lista numerada) · `histsed N` (apaga uma linha) · `histdel 'senha'` (apaga todas com o padrão) · `histclear` (apaga tudo) · `histsearch` · `histcount` · `histclean` (remove duplicatas)
 
 **Novo ✨ Ortografia:** `spell` (novo!) · `correct` · `spell arquivo` · `spell -` · `spell -x` — veja a seção **spell — corretor ortográfico** logo abaixo
+
+**Funções:** `code` (VS Code, cai em code-insiders) · `zed` (Zed editor) · `procs` (processos, cai em `ps aux`) · `geoip IP` (onde está um IP, via ip-api) · `gfiles [branch]` (arquivos alterados no diff) · `histsize N` (corta o histórico para as últimas N linhas) · `stopwatch` (cronômetro, Enter para parar) · `date2ts DATA` / `ts2date TS` (conversão data ↔ timestamp Unix) · `urldecode TEXTO` (decodifica URL-encoded) · `dcp origem:destino` / `dsh container` / `drmi [imagem]` / `dlogsall` / `dbuildpush tag` (Docker: cp, exec, rmi, logs de todos, build+push)
 
 ## ✅ spell — corretor ortográfico (novo!)
 
