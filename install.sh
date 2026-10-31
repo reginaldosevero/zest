@@ -16,15 +16,41 @@ DEST="$HOME/.config/zest"
 ZSHRC="$HOME/.zshrc"
 WITH_PLUGINS=0
 WITH_OMZ=0
+WITH_TOOLS=1
 for arg in "$@"; do
   case $arg in
     --with-plugins) WITH_PLUGINS=1 ;;
     --with-omz)     WITH_OMZ=1; WITH_PLUGINS=1 ;;   # instala o Oh My Zsh se faltar
+    --no-tools)     WITH_TOOLS=0 ;;                   # CI: pula as 17 ferramentas
   esac
 done
 
 echo "🌶️  Zest — instalação"
 echo "═══════════════════════════════════════"
+
+# 0) escolha do prompt — o que o terminal vai parecer
+#   (só pergunta em terminal interativo; em CI, o default é "zest")
+mkdir -p "$DEST"
+if [[ -t 0 && -z "${ZEST_PROMPT:-}" && ! -f "$DEST/prompt" ]]; then
+  echo ""
+  echo "🎨 Prompt do terminal"
+  echo "   O Zest não exige Oh My Zsh, então o prompt vem dele mesmo."
+  echo "   (Se já tem Oh My Zsh, starship ou powerlevel10k, o Zest não toca em nada.)"
+  echo ""
+  echo "   1) zest   ╭─usuário@máquina ~/dir ❯  com status do git  (recomendado)"
+  echo "   2) compact  ~/dir ❯  (uma linha, leve)"
+  echo "   3) plain   usuário@máquina ~/dir$  (sem cor)"
+  echo "   4) off     não mexo no prompt (você configura depois)"
+  printf "   Qual? [1] "
+  read -r _zest_escolha
+  case "${_zest_escolha:-1}" in
+    2) echo "compact" > "$DEST/prompt" ;;
+    3) echo "plain"    > "$DEST/prompt" ;;
+    4) echo "off"      > "$DEST/prompt" ;;
+    *) echo "zest"      > "$DEST/prompt" ;;
+  esac
+  unset _zest_escolha
+fi
 
 # 1) dependências — o Zest instala SOZINHO o que falta (sudo, ou su no Debian cru)
 NEED=()
@@ -182,7 +208,28 @@ PYEOF
 fi
 
 echo "═══════════════════════════════════════"
-# 7) shell padrão — se ainda for bash (ou outro), o Zest nunca carrega num terminal novo
+# 7) ferramentas — todas por padrão, via install-tool (zero root, sem sudo)
+#    O CI passa --no-tools para o ciclo ficar rápido; o usuário comum recebe
+#    tudo. O baixar falha em alguma? o próximo passo (shell) e o doctor
+#    mostram o que faltou, e o usuário pode rodar "zest add <ferramenta>".
+if (( WITH_TOOLS )); then
+  echo ""
+  echo "🔧 Instalando as 17 ferramentas (sem root, em ~/.local/bin)"
+  echo "   Isso baixa ~60 MB e pode levar um minuto — o terminal fica livre."
+  # nomes da primeira coluna de lib/tools.list (a segunda é o binário real, que
+  # o install-tool já descobre sozinho)
+  TOOLS_LIST=$(sed 's/[[:space:]]*$//' "$REPO_DIR/lib/tools.list" | grep -v '^#' | grep -v '^$' | awk '{print $1}')
+  if bash "$REPO_DIR/lib/install-tool.sh" $TOOLS_LIST; then
+    echo "✓ todas as ferramentas em $HOME/.local/bin"
+  else
+    echo "⚠️  Algumas ferramentas não instalaram — rode 'zest add <nome>' para ver"
+    echo "   o erro de cada uma (e corrigir uma a uma)."
+  fi
+else
+  echo "· ferramentas puladas (--no-tools)"
+fi
+
+# 8) shell padrão — se ainda for bash (ou outro), o Zest nunca carrega num terminal novo
 CURSHELL=$(getent passwd "$(id -un)" 2>/dev/null | cut -d: -f7)
 [[ -z "$CURSHELL" ]] && CURSHELL="${SHELL:-/bin/bash}"
 ZSHBIN="$(command -v zsh)"
@@ -206,4 +253,6 @@ fi
 
 echo "✅ Pronto! Ative com:  source ~/.zshrc   (ou abra um terminal novo)"
 echo "   Diagnóstico:        zest doctor"
+echo "   Ferramentas:        fzf · rg · fd · bat · eza · delta · zoxide · jq · yq · duf · lazygit · direnv · tldr · atuin · mise · uv · thefuck"
+echo "   Prompt:             $(cat "$DEST/prompt" 2>/dev/null || echo off) (troque com: ZEST_PROMPT=compact|plain|off)"
 echo "   Ferramentas (opcional, sem root):  zest add fzf bat eza ripgrep fd delta lazygit duf jq yq direnv tldr zoxide atuin mise"
