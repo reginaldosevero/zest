@@ -491,7 +491,6 @@ if [[ -d "$HOME/.oh-my-zsh" ]]; then
       git clone --depth 1 --branch "$_ref" -q "$_url" "$CUST/$p" && echo "✓ plugin clonado: $p ($_ref)"
     fi
     # entry-point em ARQUIVO .zsh (o Omz ignora o diretório)
-    local ep
     ep=$(plugin_entry "$CUST/$p" "$p") || { echo "   ⚠ entry-point de $p não encontrado"; continue; }
     if [[ ! -f "$CUST/$p.zsh" ]]; then
       cp "$ep" "$CUST/$p.zsh" && echo "✓ entry-point: $CUST/$p.zsh"
