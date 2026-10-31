@@ -360,5 +360,45 @@ else
   echo "  ✓ filtros de jq entre aspas (glob do zsh não engole o '[0]')"
 fi
 
+# 23) 'local x' duas vezes na mesma função faz o zsh ECOAR a atribuição ('x=''')
+#     na saída. Foi o que apareceu na frente do preço: 'local json saida erro' e
+#     mais abaixo 'local erro'. Varre módulos e bin/zest procurando a repetição.
+#     Tokeniza com split, não com match(): o mawk do Debian pula tokens no laço
+#     com match e a guarda viraria um enfeite que nunca dispararia. Só olha linha
+#     que COMEÇA com local (comentário e prosa ficam de fora) e corta em ';' e
+#     em '#', senão 'local total; total=$(...)' vira falsa acusação.
+if DUP=$(env LC_ALL=C awk '
+  /^[[:space:]]*[A-Za-z_][A-Za-z0-9_-]*\(\)[[:space:]]*\{/ { fn = $1; delete seen; next }
+  /^[[:space:]]*\}/ { fn = ""; next }
+  !fn { next }
+  /^[[:space:]]*local[[:space:]]/ {
+    line = $0
+    sub(/#.*/, "", line)
+    n = split(line, seg, /;/)
+    for (s = 1; s <= n; s++) {
+      part = seg[s]
+      gsub(/^[[:space:]]+/, "", part)
+      if (part !~ /^local([[:space:]]|$)/) continue
+      sub(/^local[[:space:]]*/, "", part)
+      m = split(part, tok, /[[:space:]]+/)
+      for (t = 1; t <= m; t++) {
+        if (tok[t] ~ /^-/) continue              # local -a / -r: opção, não nome
+        if (tok[t] !~ /^[A-Za-z_][A-Za-z0-9_]*/) continue
+        name = tok[t]
+        sub(/=.*/, "", name)                     # local x=y declara x
+        if (name in seen)
+          printf "%s:%d: local %s repetido (primeira vez na linha %d)\n", FILENAME, FNR, name, seen[name]
+        seen[name] = FNR
+      }
+    }
+  }
+' modules/*.zsh bin/zest) && [[ -z "$DUP" ]]; then
+  echo "  ✓ nenhum 'local' redeclarado (zsh ecoaria 'variável=')"
+else
+  echo "  ✗ 'local' redeclarado — o zsh imprime 'variável=' na saída do comando:"
+  printf '%s\n' "$DUP" | sed 's/^/      /'
+  FAIL=1
+fi
+
 echo "════════════════════"
 (( FAIL == 0 )) && echo "✅ smoke test passou" || { echo "❌ smoke test falhou"; exit 1; }

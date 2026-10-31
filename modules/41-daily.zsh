@@ -153,6 +153,8 @@ crypto() {
 # jq reclama de JSON inválido parecendo ticker errado.
 stocks() {
   (( $# )) || { echo 'uso: stocks PETR4.SA   (ticker na B3 leva .SA)'; return 1; }
+  # 'erro' declarado uma única vez: redeclarar com 'local' faz o zsh imprimir
+  # 'erro=''' na saída — foi o que apareceu antes do preço do PETR4
   local json saida erro
   json=$(curl -s -H 'User-Agent: Mozilla/5.0' \
          "https://query1.finance.yahoo.com/v8/finance/chart/$1")
@@ -160,7 +162,6 @@ stocks() {
     echo "o Yahoo não respondeu (muitas requisições ou sem rede) — tente de novo"
     return 1
   fi
-  local erro
   erro=$(jq -r '.chart.error.description // empty' <<<"$json" 2>/dev/null)
   [[ -n "$erro" ]] && { echo "$1: $erro (B3 usa o código com .SA — ex.: PETR4.SA)"; return 1; }
   saida=$(jq -r '.chart.result[0].meta

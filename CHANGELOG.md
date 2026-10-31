@@ -2,6 +2,12 @@
 
 ## Não lançado (desde 0.3.3)
 
+- **`stocks PETR4.SA` imprimia `erro=''` antes do preço.** Redeclarar uma
+  variável já declarada na mesma função (`local json saida erro` e, mais
+  abaixo, `local erro`) faz o zsh ecoar a atribuição na saída. O `local erro`
+  sobrou de uma edição anterior e passou em todos os testes porque o valor
+  estava certo — só vinha sujeira na frente. O `tests/smoke.sh` agora varre
+  `modules/*.zsh` e `bin/zest` procurando `local` repetido.
 - **`stocks TICKER`**: a ajuda usava `TICKER` como exemplo, que parece um comando
   e devolve "não achei o ticker". Exemplo agora é real (`PETR4.SA`), e quando o
   Yahoo responde `Not Found` a mensagem repete o motivo dele (símbolo delistado,
