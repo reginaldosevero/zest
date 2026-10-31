@@ -1,0 +1,29 @@
+# zest :: lista de ferramentas — FONTE ÚNICA
+# formato: <nome-para-zest-add>  <binário-que-o-comando-instala>
+#   (a segunda coluna só é escrita quando difere da primeira)
+#
+# Lida por:
+#   lib/install-tool.sh  → available() e o laço de instalação
+#   install.sh           → instalação completa (todas por padrão)
+#   bin/zest (doctor)    → checa o binário e sugere "zest add <nome>"
+#   tests/smoke.sh       → exige receita para cada nome desta lista
+#
+# Ordem = ordem de instalação (as mais usadas primeiro: o usuário vê resultado
+# cedo mesmo se a rede cair no meio).
+fzf
+ripgrep	rg
+fd
+bat
+eza
+delta
+zoxide
+jq
+yq
+duf
+lazygit
+direnv
+tldr
+atuin
+mise
+uv
+thefuck
