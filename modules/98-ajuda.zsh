@@ -27,7 +27,7 @@ PRODUTIVIDADE
   calc 2+3*4           calculadora rápida
   timer 25             cronômetro de 25 segundos
   weather [cidade]     clima atual
-  moon                 fase da lua
+  lua                  fase da lua (arte · lua texto · lua emoji)
   crypto               Bitcoin/Ethereum em USD e BRL
   stocks TICKER        cotação na bolsa
   news                 manchetes do Hacker News em português

@@ -64,7 +64,57 @@ weather() {
   cty=$(printf '%s' "${1:-}" | jq -Rr @uri 2>/dev/null) || cty="${1:-}"
   curl -s --max-time 8 "https://wttr.in/${cty}?format=3" 2>/dev/null || echo "sem conexão"
 }
-moon()  { curl -s "https://wttr.in/Moon?format=3" 2>/dev/null; }
+# lua — fase da lua em três modos:
+#   lua           arte ANSI (cores no terminal, texto puro em pipe)
+#   lua texto     só a linha textual: "Last Quarter - 1d 2h 36m"
+#   lua emoji     🌕🌖🌗🌘🌑 de acordo com a fase
+# O textual é extraído da própria arte do wttr.in (ela já vem com a fase e
+# o tempo até a próxima). Se a extração falhar, cai no textual cru.
+# compatibilidade: `moon` funciona como aliases de `lua`
+moon() { lua "$@"; }
+
+lua() {
+  local raw clean textual fase
+  raw=$(curl -s --max-time 8 "https://wttr.in/Moon?format=3" 2>/dev/null)
+  [[ -n "$raw" ]] || { echo "sem conexão"; return 1; }
+  case "${1:-arte}" in
+    texto)
+      clean=$(printf '%s\n' "$raw" | sed 's/\x1b\[[0-9;]*m//g')
+      # a fase e o tempo vêm em linhas separadas pela arte (Full Moon + / 5 13:47:33)
+      textual=$(printf '%s\n' "$clean" \
+        | grep -oE '(Full Moon|Last Quarter|First Quarter|New Moon|Waxing (Crescent|Gibbous)|Waning (Crescent|Gibbous)) [+-]' \
+        | head -1)
+      temporal=$(printf '%s\n' "$clean" \
+        | grep -oE '[0-9]+ [0-9]{2}:[0-9]{2}:[0-9]{2}' | head -1)
+      [[ -n "$textual" && -n "$temporal" ]] && echo "$textual $temporal" \
+        || printf '%s\n' "$clean" | grep -iE 'moon|quarter' | head -1
+      ;;
+    emoji)
+      clean=$(printf '%s\n' "$raw" | sed 's/\x1b\[[0-9;]*m//g')
+      fase=$(printf '%s\n' "$clean" \
+        | grep -oE '(Full Moon|Last Quarter|First Quarter|New Moon|Waxing (Crescent|Gibbous)|Waning (Crescent|Gibbous))' \
+        | head -1)
+      # zsh: case patterns com espaço precisam de aspas duplas
+      case "$fase" in
+        *"Full Moon"*)          echo "🌕" ;;
+        *"Last Quarter"*)       echo "🌗" ;;
+        *"First Quarter"*)      echo "🌒" ;;
+        *"New Moon"*)           echo "🌑" ;;
+        *"Waxing Gibbous"*)     echo "🌖" ;;
+        *"Waning Crescent"*)    echo "🌘" ;;
+        *)                      echo "🌙" ;;
+      esac
+      ;;
+    *)
+      # arte: mantém cores se for terminal, strip se for pipe/script
+      if [[ -t 1 ]]; then
+        printf '%s\n' "$raw"
+      else
+        printf '%s\n' "$raw" | sed 's/\x1b\[[0-9;]*m//g'
+      fi
+      ;;
+  esac
+}
 # HN com títulos traduzidos para pt-BR (API MyMemory; fallback: título original)
 # Corpo em subshell ( ) para os jobs em background NÃO poluírem o terminal
 # com mensagens de job control ([1] 12345 / done ...)
