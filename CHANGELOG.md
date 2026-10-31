@@ -1,5 +1,60 @@
 # Changelog
 
+## 0.3.0 — 2026-10-30
+
+### Novo
+- **Instalação padrão agora é completa.** Num `./install.sh` de uma máquina
+  zerada saem módulos, 17 ferramentas e o prompt — sem passos manuais.
+  Antes, `zest add`, plugins e tema eram opções que quase ninguém usava.
+- **`lib/tools.list`** — fonte única das 17 ferramentas. Antes a lista
+  estava hardcodeada em três lugares (bin/zest, install.sh e a ajuda);
+  uma adição precisava de três edições e o smoke não garantia que
+  estivessem iguais. Agora `install.sh`, `install-tool.sh` (available())
+  e `zest doctor` leem o mesmo arquivo.
+- **Módulo 22-prompt** — prompt sem framework. Estilo `zest`
+  (`╭─usuário ~/dir ❯` com branch e ●/✚ do vcs_info), `compact` e `plain`.
+  `ZEST_PROMPT=off` desliga; sem variável, autodetecta: se o PS1 já não
+  é o default do zsh cru, assume que outro framework (Oh My Zsh,
+  starship, powerlevel10k) já chegou e não mexe.
+- **`install.sh` pergunta o estilo do prompt na primeira execução**
+  (1/2/3/4, default 1). Só em terminal interativo: em CI e em
+  instalações desatendidas o default é `zest`.
+- **`zest add` com suporte a musl/Alpine.** fd, bat, eza e delta tinham
+  só a build gnu no `install-tool.sh`, então em Alpine (musl) o download
+  falhava silenciosamente. `pick_asset()` agora percorre
+  `LIBC_ORDER` (musl antes de gnu, ou o inverso) e pega a primeira build
+  que o upstream publica. Delta não tem musl para arm64 — a lista
+  termina em gnu, sem isso o instalador morria na primeira tentativa.
+- **`zest add thefuck` baixa o `uv` primeiro**, se não estiver em PATH nem
+  em `~/.local/bin`. O thefuck é instalação de Python e depende do uv.
+
+### Corrigido
+- **`zest doctor` lia a lista de ferramentas de um `TOOLS=` hardcodado**
+  em `bin/zest` que não tinha o `uv` — e o `uv` é do `thefuck` em
+  `install-tool.sh`. Agora lê `lib/tools.list` (com fallback para o
+  repositório, no caso de `ZEST_HOME` apontando para outro lugar).
+- **`zest doctor` interpretava os comentários do `tools.list` como
+  ferramentas** (ex.: `# zest :: lista de ferramentas — FONTE ÚNICA` vira
+  `zest add #`). Os três leitores ignoram linhas em branco e `#`.
+- **`install.sh` mandava a lista de ferramentas como um único argumento
+  com espaço**, e o `install-tool.sh` viu só o primeiro nome. Agora
+  passa os nomes separados por espaço (word splitting intencional).
+- **CI: os 4 jobs de instalação (Debian/Fedora/Arch/Alpine) passam a
+  rodar `install.sh --no-tools`** — instalar as 17 ferramentas em cada
+  um deles seria ~240 MB de download e 4-6 minutos a mais, sem acrescentar
+  cobertura (as receitas já passam pelo smoke local).
+- **`uninstall.sh` não mencionava o prompt** na saída. Agora diz que o
+  arquivo de escolha em `~/.config/zest/prompt` é removido junto com o
+  restante, e que as ferramentas em `~/.local/bin` ficam de propósito.
+
+### Detalhes
+- `install-tool.sh`: `get()` usa `zest_pm_hint` para a dica de "instale
+  curl" em vez de hardcodear `sudo apt install -y curl`.
+- O prompt é salvo em `$ZEST_HOME/prompt` (zest|compact|plain|off), e o
+  módulo 22 lê esse arquivo quando `ZEST_PROMPT` não está definido na
+  linha de comando.
+- Roadmap: v0.3 concluída. Próxima: v1.0 — i18n (pt_BR/en).
+
 ## 0.2.0 — 2026-10-30
 
 ### Novo

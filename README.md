@@ -1,6 +1,6 @@
 # 🌶️ Zest — o tempero do seu terminal
 
-![release](https://img.shields.io/badge/release-v0.2.0-8A2BE2) ![CI](https://github.com/reginaldosevero/zest/actions/workflows/ci.yml/badge.svg) ![licença](https://img.shields.io/github/license/reginaldosevero/zest) ![plataforma](https://img.shields.io/badge/plataforma-qualquer_Linux-success) ![shell](https://img.shields.io/badge/shell-zsh-red) ![root](https://img.shields.io/badge/root-n%C3%A3o_necess%C3%A1rio-brightgreen) ![idioma](https://img.shields.io/badge/docs-Portugu%C3%AAs-blue)
+![release](https://img.shields.io/badge/release-v0.3.0-8A2BE2) ![CI](https://github.com/reginaldosevero/zest/actions/workflows/ci.yml/badge.svg) ![licença](https://img.shields.io/github/license/reginaldosevero/zest) ![plataforma](https://img.shields.io/badge/plataforma-qualquer_Linux-success) ![shell](https://img.shields.io/badge/shell-zsh-red) ![root](https://img.shields.io/badge/root-n%C3%A3o_necess%C3%A1rio-brightgreen) ![idioma](https://img.shields.io/badge/docs-Portugu%C3%AAs-blue)
 
 **Zsh** produtivo, legível para humanos e instalável em **qualquer distro Linux** — sem precisar de root.
 
@@ -34,36 +34,38 @@ O terminal Linux padrão é cru e as mensagens de erro parecem latim. O Zest acr
 
 **Você não precisa instalar dependências manualmente** — o instalador detecta o que falta (zsh, git, curl, python3) e instala sozinho, pedindo a senha do `sudo` (ou do `root` em Debian recém-instalado). Funciona com apt, dnf, pacman, zypper e apk.
 
-Numa máquina zerada, baixe e rode (o `wget` já vem no Debian):
+### Padrão: `./install.sh` já é completo
 
-```bash
-wget -qO- https://github.com/reginaldosevero/zest/archive/refs/heads/master.tar.gz | tar xz
-cd zest-master && bash install.sh --with-omz
-```
+Numa máquina zerada, um único `./install.sh` entrega:
 
-Ou, se já tem git:
+- os módulos do Zest
+- as **17 ferramentas** (fzf, rg, fd, bat, eza, delta, zoxide, jq, yq, duf, lazygit, direnv, tldr, atuin, mise, uv, thefuck), baixadas em `~/.local/bin` — sem root
+- o **prompt** (pergunta qual estilo na primeira execução; default: `zest`, que é o visual `╭─usuário ~/dir ❯` com status do git)
+- os **plugins** se você quiser Oh My Zsh
 
 ```bash
 git clone https://github.com/reginaldosevero/zest ~/projetos/zest
 cd ~/projetos/zest
-./install.sh --with-omz   # ou o sabor da tabela abaixo
+./install.sh
 ```
 
-Escolha o seu sabor — os módulos do Zest funcionam **com ou sem framework**:
+Na primeira execução, o instalador pergunta qual prompt você quer (1-4, default 1). Só em terminal interativo: em instalações desatendidas ou em CI, o default é `zest`.
+
+### Sabores
 
 | Você tem/quer | Comando |
 |---|---|
-| Zest puro (zsh puro, sem plugins extra) | `./install.sh` |
-| Zest + plugins standalone (sem Oh My Zsh) | `./install.sh --with-plugins` |
+| Zest completo (padrão) | `./install.sh` |
 | Zest + Oh My Zsh + plugins (instala o omz se faltar) | `./install.sh --with-omz` |
+| Zest + plugins, sem Oh My Zsh | `./install.sh --with-plugins` |
 | Já usa zinit, antidote ou outro framework? | `./install.sh --with-plugins` — os plugins são scripts soltos, carregam em qualquer um |
+| CI ou teste rápido (pula as 17 ferramentas) | `./install.sh --no-tools` |
 
 Depois:
 
 ```bash
 source ~/.zshrc
 zest doctor                 # diagnostica o ambiente
-zest add fzf bat eza ripgrep fd delta lazygit duf jq yq direnv tldr zoxide atuin mise
 ```
 
 O `zest add` baixa **binários de release** para `~/.local/bin` — por isso não pede root. Se você preferir o pacote oficial da sua distro (atualiza junto com o sistema), peça o caminho nativo:
@@ -71,6 +73,8 @@ O `zest add` baixa **binários de release** para `~/.local/bin` — por isso nã
 ```bash
 zest add --prefer-pm jq tealdeer    # instala pelo apt/dnf/pacman/zypper/apk (pede sudo)
 ```
+
+O pacote só é usado quando ele realmente instala o binário com o nome que o Zest espera. No Debian/Ubuntu, por exemplo, `bat` instala `batcat` e `fd-find` instala `fdfind` — nesses casos o Zest vai direto para o binário de release, em vez de deixar um comando com nome errado parado no sistema.
 
 O pacote só é usado quando ele realmente instala o binário com o nome que o Zest espera. No Debian/Ubuntu, por exemplo, `bat` instala `batcat` e `fd-find` instala `fdfind` — nesses casos o Zest vai direto para o binário de release, em vez de deixar um comando com nome errado parado no sistema.
 
