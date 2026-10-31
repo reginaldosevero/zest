@@ -74,7 +74,7 @@ weather() {
 moon() { lua "$@"; }
 
 lua() {
-  local raw clean fase1 sinal1 tempo1 proxima1 sinal2 tempo2
+  local raw clean fase1 proxima1 tempo1 emoji nome ilum prox_texto
   raw=$(curl -s --max-time 8 "https://wttr.in/Moon?format=3" 2>/dev/null)
   [[ -n "$raw" ]] || { echo "sem conexão"; return 1; }
   clean=$(printf '%s\n' "$raw" | sed 's/\x1b\[[0-9;]*m//g')
@@ -92,45 +92,45 @@ lua() {
   tempo1=$(printf '%s\n' "$clean" \
     | grep -oE '[0-9]+ [0-9]{2}:[0-9]{2}:[0-9]{2}' | head -1)
 
-  case "${1:-arte}" in
+  # emoji, nome em pt-BR e iluminação estimada por fase
+  case "$fase1" in
+    *"Full Moon"*)          emoji="🌕"; nome="Lua cheia";        ilum="100%" ;;
+    *"Waxing Gibbous"*)     emoji="🌖"; nome="Lua gibosa";      ilum="75%"  ;;
+    *"Last Quarter"*)       emoji="🌗"; nome="Quarto minguante";ilum="50%"  ;;
+    *"Waning Crescent"*)    emoji="🌘"; nome="Lua minguante";   ilum="25%"  ;;
+    *"New Moon"*)           emoji="🌑"; nome="Lua nova";        ilum="0%"   ;;
+    *"Waxing Crescent"*)    emoji="🌒"; nome="Lua crescente";   ilum="25%"  ;;
+    *"First Quarter"*)      emoji="🌒"; nome="Quarto crescente";ilum="50%"  ;;
+    *)                      emoji="🌙"; nome="Lua";             ilum="?%"   ;;
+  esac
+
+  prox_texto=""
+  [[ -n "$proxima1" && -n "$tempo1" ]] && {
+    local dias="${tempo1%% *}" hhmmss="${tempo1#* }"
+    prox_texto="Próxima: ${proxima1% *} em ${dias}d ${hhmmss%:*}"
+  }
+
+  case "${1:-}" in
     texto)
       [[ -n "$fase1" ]] && echo "$fase1" \
         || printf '%s\n' "$clean" | grep -iE 'moon|quarter' | head -1
       ;;
     emoji)
-      case "$fase1" in
-        *"Full Moon"*)          echo "🌕" ;;
-        *"Last Quarter"*)       echo "🌗" ;;
-        *"First Quarter"*)      echo "🌒" ;;
-        *"New Moon"*)           echo "🌑" ;;
-        *"Waxing Gibbous"*)     echo "🌖" ;;
-        *"Waning Crescent"*)    echo "🌘" ;;
-        *)                      echo "🌙" ;;
-      esac
+      echo "$emoji"
       ;;
-    *)
-      # arte + contexto: emoji e nome da fase em cima, arte embaixo
+    arte)
       # mantém cores se for terminal, strip se for pipe/script
-      local emoji="🌙"
-      case "$fase1" in
-        *"Full Moon"*)          emoji="🌕" ;;
-        *"Last Quarter"*)       emoji="🌗" ;;
-        *"First Quarter"*)      emoji="🌒" ;;
-        *"New Moon"*)           emoji="🌑" ;;
-        *"Waxing Gibbous"*)     emoji="🌖" ;;
-        *"Waning Crescent"*)    emoji="🌘" ;;
-      esac
-      echo "$emoji ${fase1% *}"
-      [[ -n "$proxima1" && -n "$tempo1" ]] && {
-        local dias="${tempo1%% *}" hhmmss="${tempo1#* }"
-        echo "Próxima: ${proxima1% *} em ${dias}d ${hhmmss%:*}"
-      }
-      echo ""
       if [[ -t 1 ]]; then
         printf '%s\n' "$raw"
       else
         printf '%s\n' "$raw" | sed 's/\x1b\[[0-9;]*m//g'
       fi
+      ;;
+    *)
+      # padrão: só texto
+      echo "$emoji $nome"
+      echo "Illuminação: $ilum"
+      [[ -n "$prox_texto" ]] && echo "$prox_texto"
       ;;
   esac
 }
