@@ -20,7 +20,7 @@ USO: zest <comando>
 EOF
 }
 
-TOOLS="fzf zoxide atuin mise jq yq direnv eza rg fd bat delta lazygit duf tldr thefuck"
+TOOLS=$(while IFS=$'\t' read -r _nome _bin; do [[ -z "$_nome" ]] && continue; printf '%s ' "$_nome"; done <"$ZEST_HOME/lib/tools.list")
 
 cmd_doctor() {
   local ok=0 warn=0 MODDIR
@@ -39,6 +39,16 @@ cmd_doctor() {
 
   printf '%-28s' "· Oh My Zsh"
   [[ -d "$HOME/.oh-my-zsh" ]] && echo "✓" || { echo "→ não instalado (opcional, módulos funcionam sem)"; warn=$((warn+1)); }
+
+  # lista de ferramentas: fonte única (lib/tools.list), com fallback para o repositório
+  local TOOLS_FILE
+  TOOLS_FILE="$ZEST_HOME/lib/tools.list"
+  [[ -f "$TOOLS_FILE" ]] || TOOLS_FILE="$ZEST_REPO/lib/tools.list"
+  TOOLS=$(while IFS=$'\t' read -r _nome _bin; do
+    # ignora linhas em branco e as linhas de cabeçalho do tools.list
+    [[ -z "$_nome" || "$_nome" == \#* || "$_nome" == \(* ]] && continue
+    printf '%s ' "$_nome"
+  done <"$TOOLS_FILE")
 
   for t in $TOOLS; do
     printf '%-28s' "· $t"
