@@ -322,5 +322,32 @@ else
 fi
 rm -rf "$AS_HOME"
 
+# 20) nenhum 'grep -q' pendurado em pipe no lib/distro.sh: o -q fecha o pipe no
+#     primeiro match, o comando da esquerda leva SIGPIPE e, sob 'set -o
+#     pipefail', a função devolve 141 MESMO quando o pacote existe — o instalador
+#     achava que procps/iproute2 não existiam e seguia sem eles.
+if grep -nE '\|[[:space:]]*(LC_ALL=[^ ]+[[:space:]]+)?grep[[:space:]]+[^|]*-q([[:space:]]|$)' lib/distro.sh >/dev/null; then
+  echo "  ✗ lib/distro.sh tem 'grep -q' em pipe (SIGPIPE + pipefail = falso ausente)"; FAIL=1
+else
+  echo "  ✓ distro.sh sem 'grep -q' em pipe (SIGPIPE não vira pacote ausente)"
+fi
+
+# 21) o instalador cobre os utilitários de sistema que os wrappers chamam: sem
+#     `ps` o topcpu morre e o usuário culpa o Zest. Varredura feita com PATH
+#     inexistente (nada achado) + tabela de pacotes por distro.
+if env -i HOME="$(mktemp -d)" PATH="/nonexistent" "$(command -v bash)" -c "
+  source '$(dirname "$0")/../lib/distro.sh'
+  m=\$(zest_base_missing)
+  [[ \$m == *ps* && \$m == *ss* ]] || exit 1
+  [[ \$(zest_base_pkg ps apt-get) == procps ]] || exit 1
+  [[ \$(zest_base_pkg ss apt-get) == iproute2 ]] || exit 1
+  zest_base_pkg binario-inexistente apt-get && exit 1
+  exit 0
+"; then
+  echo "  ✓ wrappers têm dependência de sistema mapeada (ps→procps, ss→iproute2)"
+else
+  echo "  ✗ varredura de utilitários de sistema está errada"; FAIL=1
+fi
+
 echo "════════════════════"
 (( FAIL == 0 )) && echo "✅ smoke test passou" || { echo "❌ smoke test falhou"; exit 1; }

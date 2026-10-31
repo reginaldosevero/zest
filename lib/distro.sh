@@ -116,13 +116,17 @@ zest_pm_clean() {
 # Consulta somente leitura: nenhuma senha é pedida aqui. É o que evita a
 # situação chata de pedir sudo para descobrir que o pacote não existe.
 zest_pm_has() {
+  # NADA de 'grep -q' aqui: o -q fecha o pipe no primeiro match, o lado de trás
+  # (apt-cache/dnf) leva SIGPIPE e, sob 'set -o pipefail', a função inteira
+  # retorna 141 MESMO quando o pacote existe. O pacote era dado como ausente e o
+  # instalador seguia sem ele. Redirecionar para /dev/null deixa o grep ler tudo.
   case "$1" in
     # apt-cache traduz o rótulo ("Candidato"/"Candidate") conforme o locale, e
     # pacote inexistente não imprime nada. Força C locale no apt-cache e aceita
     # só "Candidate: <versão>" — nunca "(none)".
     apt-get) LC_ALL=C apt-cache policy "$2" 2>/dev/null \
-             | grep -Eq '^[[:space:]]+Candidate: +[^ (]' ;;
-    dnf)     dnf -q list available "$2" 2>/dev/null | grep -q "^$2\." ;;
+             | grep -E '^[[:space:]]+Candidate: +[^ (]' >/dev/null ;;
+    dnf)     dnf -q list available "$2" 2>/dev/null | grep "^$2\." >/dev/null ;;
     pacman)  pacman -Si "$2" >/dev/null 2>&1 ;;
     zypper)  zypper info -t package "$2" >/dev/null 2>&1 ;;
     apk)     apk info -e "$2" >/dev/null 2>&1 ;;
@@ -160,4 +164,36 @@ zest_pkg() {
     thefuck) echo thefuck; return 0 ;;
   esac
   return 1
+}
+
+# zest_base_pkg <binário> <pm> — pacote do SISTEMA (não as 17 ferramentas) que
+# instala aquele binário. As 17 ferramentas vêm de release em ~/.local/bin; mas
+# os wrappers do Zest (topcpu, portinfo, sysinfo…) chamam utilitários de sistema
+# que um container enxuto NÃO traz: sem `ps` o topcpu morre, sem `ss` o portinfo
+# morre, e o usuário vê "command not found" achando que o Zest está quebrado.
+# É o oposto do critério do zest_pkg: aqui o nome diverge à vontade (ps→procps,
+# ss→iproute2, hostname→net-tools), porque o Zest nunca chama o pacote, chama o
+# binário — e é o binário que o teste de ausência confere.
+zest_base_pkg() {
+  local bin="$1" pm="$2"
+  case "$bin" in
+    ps)      echo procps; return 0 ;;
+    ss|ip)   echo iproute2; return 0 ;;
+    lsof)    echo lsof; return 0 ;;
+    sensors) echo lm-sensors; return 0 ;;
+    hostname) echo net-tools; return 0 ;;
+    lscpu)   case "$pm" in apt-get|apk) echo util-linux; return 0 ;;
+                      dnf|zypper|pacman) echo util-linux; return 0 ;; esac; return 1 ;;
+    sudo)    echo sudo; return 0 ;;
+  esac
+  return 1
+}
+
+# zest_base_missing — binários de sistema que os wrappers do Zest esperam e que
+# faltam nesta máquina. Uma linha cada. Não pede senha: só olha o PATH.
+zest_base_missing() {
+  local b
+  for b in ps ss ip lsof sensors hostname lscpu; do
+    command -v "$b" >/dev/null 2>&1 || printf '%s\n' "$b"
+  done
 }

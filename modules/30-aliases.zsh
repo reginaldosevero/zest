@@ -142,8 +142,19 @@ else
           END { printf "\n  💡 %%CPU é a média desde que o programa abriu — uso em tempo real: btop\n" }'
   }
 fi
-portinfo() { sudo lsof -i :"$1" 2>/dev/null || ss -tulnp | grep ":$1"; }
-alias temps='sensors 2>/dev/null || cat /sys/class/thermal/thermal_zone*/temp 2>/dev/null'
+# sudo só quando NÃO for root: em container todo mundo é root e o 'sudo' nem
+# existe. Sem if/else explícito a cadeia de '||' dava falso sucesso: (( EUID == 0 ))
+# é 0 e a função parava ali, sem imprimir nada.
+portinfo() {
+  local out
+  out=$(lsof -i ":$1" 2>/dev/null) && [[ -n "$out" ]] && { print -r -- "$out"; return 0; }
+  (( EUID == 0 )) || out=$(_zest-sudo lsof -i ":$1" 2>/dev/null)
+  [[ -n "$out" ]] && { print -r -- "$out"; return 0; }
+  out=$(ss -tulnp 2>/dev/null | grep ":$1 ")
+  [[ -n "$out" ]] && { print -r -- "$out"; return 0; }
+  echo "nada escutando na porta $1 (ou faltam lsof/ss — o install.sh instala)"
+}
+alias temps='sensors 2>/dev/null || cat /sys/class/thermal/thermal_zone*/temp 2>/dev/null || echo "sem leitura de temperatura aqui (instale lm-sensors ou carregue os módulos de sensores)"'
 
 # ------------------------------------------------------------
 #  ALIASES — Desenvolvimento Web

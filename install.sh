@@ -253,7 +253,39 @@ if (( ${#NEED[@]} )); then
   fi
 fi
 
-# zsh é a única dependência realmente inegociável: os módulos são código zsh.
+# 1b) utilitários de sistema que os WRAPPERS do Zest chamam — o ponto cego das
+#     edições anteriores: as 17 ferramentas vinham de release, mas o container
+#     enxuto não traz `ps` (procps) nem `ss` (iproute2), e aí topcpu/portinfo
+#     morriam com "command not found" parecendo bug do Zest. varredura só lê
+#     PATH e apt-cache; a instalação usa o mesmo pm_install (root direto,
+#     senão sudo/su) e só pede o pacote que EXISTE na distro (zest_pm_has).
+if declare -F zest_base_missing >/dev/null 2>&1; then
+  BASE_MISS=()
+  while IFS= read -r _b; do BASE_MISS+=("$_b"); done < <(zest_base_missing)
+  BASE_PKGS=()
+  # Cuidado com '[[ ]] && x || y': se o teste passa e a atribuição falha, o
+  # '||' roda e JOGA FORA o gerenciador já detectado no passo 1.
+  [[ -n "$PM" ]] || PM=$(pm_detect) || PM=""
+  if (( ${#BASE_MISS[@]} )) && [[ -n "$PM" ]]; then
+    for _b in "${BASE_MISS[@]}"; do
+      _p=$(zest_base_pkg "$_b" "$PM" 2>/dev/null) || continue
+      # um pacote serve vários binários (iproute2 = ss + ip); o apt reclama de
+      # argumento repetido, então só entra uma vez
+      [[ " ${BASE_PKGS[*]-} " == *" $_p "* ]] && continue
+      zest_pm_has "$PM" "$_p" && BASE_PKGS+=("$_p")
+    done
+  fi
+  if (( ${#BASE_PKGS[@]} )); then
+    echo "🔧 Faltam utilitários de sistema que o Zest usa: ${BASE_MISS[*]}"
+    if pm_install "$PM" "${BASE_PKGS[@]}" >/dev/null 2>&1; then
+      echo "✓ utilitários de sistema instalados (${BASE_PKGS[*]})"
+    else
+      echo "· não consegui instalar (${BASE_PKGS[*]}) — topcpu/portinfo/temps podem reclamar"
+    fi
+  fi
+  unset BASE_MISS BASE_PKGS _b _p
+fi
+
 # Sem ele o Zest não carrega em lugar nenhum — então a mensagem tem de ser a
 # linha exata para a máquina dele (root não usa sudo), e nada de "rode de novo".
 if ! command -v zsh >/dev/null 2>&1; then
