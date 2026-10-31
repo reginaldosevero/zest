@@ -24,19 +24,20 @@ zest_sweep_orphans() {
   # procura 'source X' ou '. X' onde X tem barra (é caminho)
   if grep -qE '^[[:space:]]*(source|\.)[[:space:]]+[^;|&]*[/]' "$f"; then
     tmp="$(mktemp)"
-    awk -v HOME="$HOME" '
+    awk -v HOME="$HOME" -v ZSH="$ZSH" '
       /^[[:space:]]*(source|\.)[[:space:]]+[^;|&]*[/]/ {
         line = $0
         sub(/^[[:space:]]*(source|\.)[[:space:]]+/, "", line)
         sub(/[[:space:];|&]+.*$/, "", line)
         gsub(/^~/, HOME, line)
-        if (line ~ /\$/) {
-          cmd = "test -e " line
-          if (system(cmd) != 0) {
-            print "# [zest] source órfão: " line
-            next
-          }
-        } else if (system("test -e " line) != 0) {
+        gsub(/\$ZSH/, ZSH, line)
+        gsub(/\$HOME/, HOME, line)
+        # NÃO comenta frameworks principais conhecidos (mesmo se $ZSH vazio)
+        if (line ~ /oh-my-zsh\.sh$|\.starship\.sh$|zinit\.zsh$|powerlevel10k\/powerlevel10k\.zsh-theme$/) {
+          print
+          next
+        }
+        if (system("test -e " line) != 0) {
           print "# [zest] source órfão: " line
           next
         }

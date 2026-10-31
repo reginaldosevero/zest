@@ -272,20 +272,22 @@ rm -rf "$P_HOME" "$P_SHIM"
 # 18) lib/sweep.sh comenta 'source X' onde X não existe — sem tocar no conteúdo
 #     real do usuário (nunca apaga, só comenta). Testa os três formatos:
 #     absoluto (/caminho), tilde (~/caminho) e variável ($VAR/caminho).
-#     O tilde é expandido pelo awk para o caminho absoluto do HOME, então o
-#     marcador pode vir com o caminho completo — o teste aceita os dois.
+#     Frameworks principais conhecidos (oh-my-zsh, starship, zinit, p10k) NÃO
+#     são comentados mesmo se a variável não expandir — evitam o bug de
+#     comentar 'source $ZSH/oh-my-zsh.sh' quando $ZSH vazio no subshell.
 S_HOME="$(mktemp -d)"
 printf 'export ZSH="$HOME/.oh-my-zsh"\nsource $ZSH/oh-my-zsh.sh\n\nalias ll="ls -la"\nsource ~/naoexiste/roda.sh\nsource /caminho/que/nao/existe.sh\n' > "$S_HOME/.zshrc"
 if env -i HOME="$S_HOME" PATH="$PATH" bash -c "
   source '$(dirname "$0")/../lib/sweep.sh'
   zest_sweep_orphans '$S_HOME/.zshrc'
-" && grep -q '# \[zest\] source órfão: \$ZSH/oh-my-zsh.sh' "$S_HOME/.zshrc" \
+" && ! grep -q '# \[zest\] source órfão: \$ZSH/oh-my-zsh.sh' "$S_HOME/.zshrc" \
    && grep -qE '# \[zest\] source órfão: (~/naoexiste/roda.sh|'"$S_HOME"'/naoexiste/roda.sh)' "$S_HOME/.zshrc" \
    && grep -q '# \[zest\] source órfão: /caminho/que/nao/existe.sh' "$S_HOME/.zshrc" \
-   && grep -q 'alias ll="ls -la"' "$S_HOME/.zshrc"; then
-  echo "  ✓ sweep.sh comenta sources órfãos (absoluto, tilde, \$VAR) sem apagar nada"
+   && grep -q 'alias ll="ls -la"' "$S_HOME/.zshrc" \
+   && grep -q 'source \$ZSH/oh-my-zsh.sh' "$S_HOME/.zshrc"; then
+  echo "  ✓ sweep.sh comenta órfãos (absoluto, tilde, \$VAR) e protege frameworks"
 else
-  echo "  ✗ sweep.sh não comentou os três formatos corretamente"; FAIL=1
+  echo "  ✗ sweep.sh não comentou os formatos corretamente ou protegeu frameworks"; FAIL=1
 fi
 rm -rf "$S_HOME"
 
