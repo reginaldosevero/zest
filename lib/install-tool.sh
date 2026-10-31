@@ -61,10 +61,16 @@ get() { # url arquivo-de-saída
   fi
 }
 
-release_json() { # repo -> json do último release (cacheado na sessão)
-  local f="$T/api/${1//\//_}.json"
-  [[ -s "$f" ]] || get "https://api.github.com/repos/$1/releases/latest" "$f" || return 1
-  cat "$f"
+# latest_tag <repo> -> tag do último release, pelo redirect do GitHub
+# api.github.com devolve 403 em rate-limit/bloqueio, então não usamos a API.
+# O redirect github.com/<repo>/releases/latest redireciona para
+# /releases/tag/<tag> — só de extrair a tag da URL final.
+latest_tag() {
+  local repo="$1" url
+  url=$(curl -fsSL --proto '=https' --tlsv1.2 --max-time 60 -o /dev/null -w '%{url_effective}' "https://github.com/$repo/releases/latest" 2>/dev/null) || return 1
+  url="${url%/releases/latest}"
+  url="${url##*/releases/tag/}"
+  [[ -n "$url" ]] && printf '%s' "$url" || return 1
 }
 
 # pick_asset <repo> <prefix> — primeiro asset compatível com a libc atual.
@@ -86,11 +92,7 @@ pick_asset() {
   return 1
 }
 
-tag() {
-  release_json "$1" | tr -d '\n' \
-    | grep -oE '"tag_name": *"[^"]+"' | head -1 \
-    | sed -E 's/.*"([^"]+)"$/\1/'
-}
+tag() { latest_tag "$1"; }
 
 digest_for() { # repo asset -> sha256 oficial (vazio se o GitHub não informar)
   local re
