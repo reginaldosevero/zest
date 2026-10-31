@@ -1,5 +1,49 @@
 # Changelog
 
+## Não lançado (desde 0.3.2)
+
+Correções apontadas por testes em container Debian limpo (root, sem `git`,
+sem `sudo`, sem `ps`). Cada uma tem guarda no `tests/smoke.sh`.
+
+### Correções
+- **`$ZSH: unbound variable abortava a instalação no meio.** O `install.sh`
+  roda com `set -euo pipefail` e o `lib/sweep.sh` lia `"$ZSH"` cru — mas `$ZSH`
+  é definição do `.zshrc` do Oh My Zsh em zsh, nunca de um script bash. O sweep
+  morria *antes* de escrever os plugins no `.zshrc`: a instalação terminava, o
+  `zest doctor` dava tudo verde, e a autossugestão simplesmente não existia.
+- **`sweep` não comenta o que não consegue resolver.** Comentar é uma
+  intervenção: só se comenta com certeza de que o alvo não existe. Sobrou `$`
+  (variável desconhecida) ou `*` (glob) na linha, ela é poupada. Falso positivo
+  quebra o shell do usuário todos os dias; falso negativo é uma linha morta a
+  mais. O carregamento do framework (`oh-my-zsh.sh`, `starship`, `zinit`,
+  `p10k`, `antidote`, `oh-my-posh`) nunca é comentado.
+- **`grep -q` em pipe devolvia "pacote inexistente" sempre.** O `-q` fecha o
+  pipe no primeiro *match*, o `apt-cache` do lado de lá leva SIGPIPE e, sob
+  `set -o pipefail`, a função retornava 141 **mesmo com o pacote presente**.
+  Todo pacote era dado como ausente.
+- **autossugestão não carregava com Oh My Zsh.** O Oh My Zsh lê
+  `$ZSH_CUSTOM/plugins/<nome>/<nome>.plugin.zsh`; o instalador vinha gravando
+  um arquivo solto `<nome>.zsh`, que o framework ignora.
+- **`fd`, `bat`, `eza` e `delta` falhavam com "nenhuma build".** Cada projeto
+  empacota de um jeito: agora o nome do asset é montado exatamente (`fd-v…-gnu`,
+  `eza_x86_64-…` sem versão, `delta-…` sem `v`), tentando `gnu` e caindo para
+  `musl` — o mesmo padrão que já valia para fzf/ripgrep/lazygit.
+- **`portinfo` exigia `sudo` até como root**, e devolvia silêncio quando não
+  achava nada; `temps` idem. Os dois agora explicam o que falta.
+
+### Novo
+- **O instalador cobre os utilitários de sistema que os wrappers chamam.** As
+  17 ferramentas vêm de release, mas um container enxuto não traz `ps` nem `ss`
+  — e aí `topcpu` e `portinfo` morriam com "command not found", parecendo bug
+  do Zest. `zest_base_pkg`/`zest_base_missing` (em `lib/distro.sh`) mapeiam
+  binário → pacote (`ps`→`procps`, `ss`/`ip`→`iproute2`, `sensors`→`lm-sensors`)
+  e o passo 1b instala só o que falta e só o que existe na distro.
+- **`tests/autosuggest.py`: autossugestão medida num pseudo-terminal real.**
+  `type _zsh_autosuggest_start` só prova que a função existe; o usuário vê cinza
+  atrás do cursor. O teste abre um `zsh -i` num PTY, digita `git co` e procura
+  nos bytes que iriam para a tela o complemento do histórico — com controle
+  negativo (sem o plugin, tem de falhar).
+
 ## 0.3.2 — 2026-10-31
 
 ### Correção
