@@ -499,6 +499,13 @@ PYEOF
       fi
     done
   fi
+  # 6d) estilo das sugestões: o default do plugin é "fg=38;5;70" (cinza
+  #     escuro), que some em terminais com fundo escuro. Força um cinza claro
+  #     visível em qualquer tema. Só escreve se não estiver definido.
+  if ! grep -q '^ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE=' "$ZSHRC"; then
+    echo 'ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=244"' >> "$ZSHRC"
+    echo "✓ estilo de sugestão: fg=244 (cinza claro)"
+  fi
 fi
 
 echo "═══════════════════════════════════════"
