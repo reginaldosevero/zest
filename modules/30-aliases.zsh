@@ -83,46 +83,65 @@ alias diskcheck='ncdu'
 procs()  { command procs "$@" 2>/dev/null || ps aux "$@"; }
 
 # Versão legível para humanos: agrupa por programa, barra gráfica e cores
-topmem() {
-  echo "🧠 Quem mais usa MEMÓRIA (somado por programa):"
-  echo ""
-  local total; total=$(awk '/^MemTotal/ {print $2}' /proc/meminfo)
-  ps -eo rss,args --no-headers \
-    | awk '$0 ~ /eo rss,args/ {next} {n=split($2,a,"/"); mem[a[n]]+=$1} END {for (c in mem) printf "%d\t%s\n", mem[c], c}' \
-    | sort -rn | head -10 \
-    | awk -F'\t' -v total="$total" '
-        function human(kb) {
-          if (kb >= 1048576) return sprintf("%.1f GB", kb/1048576)
-          if (kb >= 1024)    return sprintf("%d MB", kb/1024)
-          return sprintf("%d KB", kb)
-        }
-        {
-          pct = 100 * $1 / total
-          full = int(pct / 5 + 0.5); if (full > 20) full = 20
-          bar = ""
-          for (i = 0; i < 20; i++) bar = bar (i < full ? "█" : "░")
-          color = (pct > 60 ? "\033[31m" : (pct > 30 ? "\033[33m" : "\033[32m"))
-          printf "  %-16s %8s  %s%s\033[0m %5.1f%%\n", substr($2,1,16), human($1), color, bar, pct
-        }
-        END { printf "\n  💡 RAM total da máquina: %s — para ver ao vivo: btop\n", human(total) }'
-}
+# Precisa do 'ps' (procps). Em container minimal sem procps, cai num
+# aviso amigável em vez de estourar "zsh: command not found: ps".
+if ! command -v ps >/dev/null 2>&1; then
+  topmem() {
+    echo "🧠 Quem mais usa MEMÓRIA (somado por programa):"
+    echo ""
+    echo "   'ps' não está instalado (procps). Instale com:"
+    echo "     zest add btop      # visual, tempo real, sem root"
+    echo "     apt install procps # se for root"
+  }
+  topcpu() {
+    echo "🔥 Quem mais usa CPU (somado por programa):"
+    echo ""
+    echo "   'ps' não está instalado (procps). Instale com:"
+    echo "     zest add btop      # visual, tempo real, sem root"
+    echo "     apt install procps # se for root"
+  }
+else
+  topmem() {
+    echo "🧠 Quem mais usa MEMÓRIA (somado por programa):"
+    echo ""
+    local total; total=$(awk '/^MemTotal/ {print $2}' /proc/meminfo)
+    ps -eo rss,args --no-headers \
+      | awk '$0 ~ /eo rss,args/ {next} {n=split($2,a,"/"); mem[a[n]]+=$1} END {for (c in mem) printf "%d\t%s\n", mem[c], c}' \
+      | sort -rn | head -10 \
+      | awk -F'\t' -v total="$total" '
+          function human(kb) {
+            if (kb >= 1048576) return sprintf("%.1f GB", kb/1048576)
+            if (kb >= 1024)    return sprintf("%d MB", kb/1024)
+            return sprintf("%d KB", kb)
+          }
+          {
+            pct = 100 * $1 / total
+            full = int(pct / 5 + 0.5); if (full > 20) full = 20
+            bar = ""
+            for (i = 0; i < 20; i++) bar = bar (i < full ? "█" : "░")
+            color = (pct > 60 ? "\033[31m" : (pct > 30 ? "\033[33m" : "\033[32m"))
+            printf "  %-16s %8s  %s%s\033[0m %5.1f%%\n", substr($2,1,16), human($1), color, bar, pct
+          }
+          END { printf "\n  💡 RAM total da máquina: %s — para ver ao vivo: btop\n", human(total) }'
+  }
 
-topcpu() {
-  echo "🔥 Quem mais usa CPU (somado por programa):"
-  echo ""
-  ps -eo pcpu,args --no-headers \
-    | awk '$0 ~ /eo pcpu,args/ {next} {n=split($2,a,"/"); cpu[a[n]]+=$1} END {for (c in cpu) printf "%.1f\t%s\n", cpu[c], c}' \
-    | sort -rn | head -10 \
-    | awk -F'\t' '
-        {
-          full = int($1 / 5 + 0.5); if (full > 20) full = 20
-          bar = ""
-          for (i = 0; i < 20; i++) bar = bar (i < full ? "█" : "░")
-          color = ($1 > 80 ? "\033[31m" : ($1 > 40 ? "\033[33m" : "\033[32m"))
-          printf "  %-16s %6.1f%%  %s%s\033[0m\n", substr($2,1,16), $1, color, bar
-        }
-        END { printf "\n  💡 %%CPU é a média desde que o programa abriu — uso em tempo real: btop\n" }'
-}
+  topcpu() {
+    echo "🔥 Quem mais usa CPU (somado por programa):"
+    echo ""
+    ps -eo pcpu,args --no-headers \
+      | awk '$0 ~ /eo pcpu,args/ {next} {n=split($2,a,"/"); cpu[a[n]]+=$1} END {for (c in cpu) printf "%.1f\t%s\n", cpu[c], c}' \
+      | sort -rn | head -10 \
+      | awk -F'\t' '
+          {
+            full = int($1 / 5 + 0.5); if (full > 20) full = 20
+            bar = ""
+            for (i = 0; i < 20; i++) bar = bar (i < full ? "█" : "░")
+            color = ($1 > 80 ? "\033[31m" : ($1 > 40 ? "\033[33m" : "\033[32m"))
+            printf "  %-16s %6.1f%%  %s%s\033[0m\n", substr($2,1,16), $1, color, bar
+          }
+          END { printf "\n  💡 %%CPU é a média desde que o programa abriu — uso em tempo real: btop\n" }'
+  }
+fi
 portinfo() { sudo lsof -i :"$1" 2>/dev/null || ss -tulnp | grep ":$1"; }
 alias temps='sensors 2>/dev/null || cat /sys/class/thermal/thermal_zone*/temp 2>/dev/null'
 

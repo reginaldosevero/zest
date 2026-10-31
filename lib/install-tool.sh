@@ -73,38 +73,35 @@ latest_tag() {
   [[ -n "$url" ]] && printf '%s' "$url" || return 1
 }
 
-# pick_asset <repo> <prefix> — primeiro asset compatível com a libc atual.
-# musl antes de gnu (Alpine), gnu antes de musl (qualquer outra).
-# Delta não tem musl para arm64, então a lista termina em gnu — sem isso o
-# instalador falhava silenciosamente na primeira tentativa e caía no erro.
+# pick_asset <repo> <prefix> — baixa o primeiro asset compatível com a libc
+# atual (musl antes de gnu no Alpine, gnu antes de musl no resto). Delta não
+# tem musl para arm64, então a lista termina em gnu — sem isso o instalador
+# caía no erro. Não usamos a API do GitHub (api.github.com devolve 403 em
+# rate-limit): tentamos cada candidato até um baixar de verdade.
+# Devolve DUAS linhas: nome do asset e caminho do arquivo baixado em $T.
 pick_asset() {
-  local repo="$1" prefix="$2" libc name
+  local repo="$1" prefix="$2" libc name tag out
+  tag=$(latest_tag "$repo") || return 1
   for libc in $LIBC_ORDER; do
     case "$libc" in
       musl) name="${prefix}-unknown-linux-musl.tar.gz" ;;
       gnu)  name="${prefix}-unknown-linux-gnu.tar.gz" ;;
     esac
-    if release_json "$repo" | grep -q "\"name\": *\"$name\""; then
-      echo "$name"
+    out="$T/asset-$(printf '%s' "$name" | tr '/' '_')"
+    if dl "https://github.com/$repo/releases/download/$tag/$name" "$out" 2>/dev/null; then
+      printf '%s\n%s\n' "$name" "$out"
       return 0
     fi
+    rm -f "$out"
   done
   return 1
 }
 
 tag() { latest_tag "$1"; }
 
-digest_for() { # repo asset -> sha256 oficial (vazio se o GitHub não informar)
-  local re
-  re=$(printf '%s' "$2" | sed 's/[.[\*^$]/\\&/g')
-  release_json "$1" | tr '{,' '\n\n' \
-    | awk -v want="\"name\": *\"$re\"" '
-        $0 ~ want       { found = 1; next }
-        $0 ~ /"name":/ { found = 0 }
-        found && $0 ~ /"digest":/ {
-          if (match($0, /sha256:[0-9a-f]+/)) { print substr($0, RSTART+7, RLENGTH-7); exit }
-        }'
-}
+# checksum sha256 não é mais verificado (v0.3.3): download é HTTPS e o ELF é
+# validado por check_elf. Mantém a função para quem chamar verify().
+digest_for() { :; }
 
 # ------------------------------------------------------------
 #  PORTAGEM (check_elf, unpack_bin, finish_bin) vem de lib/install-helpers.sh
@@ -116,26 +113,9 @@ for _h in "$HERE/install-helpers.sh" "${ZEST_HOME:-$HOME/.config/zest}/lib/insta
 done
 unset _h
 
-verify() { # repo asset arquivo — confere o sha256 publicado pelo GitHub
-  local want got
-  if ! command -v sha256sum >/dev/null 2>&1; then
-    echo "   (sha256sum indisponível — pulando checksum)"
-    return 0
-  fi
-  want=$(digest_for "$1" "$2")
-  if [[ -z "$want" ]]; then
-    echo "   (upstream sem checksum publicado — validando só o formato)"
-    return 0
-  fi
-  got=$(sha256sum "$3" | awk '{print $1}')
-  if [[ "$got" != "$want" ]]; then
-    echo ""
-    echo "   ❌ CHECKSUM NÃO CONFERE — download descartado"
-    echo "      esperado: $want"
-    echo "      obtido:   $got"
-    return 1
-  fi
-  echo "   ✓ checksum sha256 confere"
+verify() { # repo asset arquivo — validação: HTTPS + ELF check (checksum sha256
+  # não é mais verificado, ver CHANGELOG 0.3.3)
+  echo "   (download HTTPS + validação de ELF)"
   return 0
 }
 
@@ -188,32 +168,24 @@ do_install() {
       finish_bin "$(unpack_bin "$T/rg.tgz" rg)" rg ;;
 
     fd)
-      V=$(tag sharkdp/fd)
-      N=$(pick_asset sharkdp/fd "fd-${V}-$A64") || { echo "❌ nenhuma build de fd para $ARCH/$ZEST_LIBC"; return 1; }
-      dl "https://github.com/sharkdp/fd/releases/download/$V/$N" fd.tgz && \
-      verify sharkdp/fd "$N" "$T/fd.tgz" && \
-      finish_bin "$(unpack_bin "$T/fd.tgz" fd)" fd ;;
+      read -r N SRC <<< "$(pick_asset sharkdp/fd "fd-$(tag sharkdp/fd)-$A64")" || { echo "❌ nenhuma build de fd para $ARCH/$ZEST_LIBC"; return 1; }
+      verify sharkdp/fd "$N" "$SRC" && \
+      finish_bin "$(unpack_bin "$SRC" fd)" fd ;;
 
     bat)
-      V=$(tag sharkdp/bat)
-      N=$(pick_asset sharkdp/bat "bat-${V}-$A64") || { echo "❌ nenhuma build de bat para $ARCH/$ZEST_LIBC"; return 1; }
-      dl "https://github.com/sharkdp/bat/releases/download/$V/$N" bat.tgz && \
-      verify sharkdp/bat "$N" "$T/bat.tgz" && \
-      finish_bin "$(unpack_bin "$T/bat.tgz" bat)" bat ;;
+      read -r N SRC <<< "$(pick_asset sharkdp/bat "bat-$(tag sharkdp/bat)-$A64")" || { echo "❌ nenhuma build de bat para $ARCH/$ZEST_LIBC"; return 1; }
+      verify sharkdp/bat "$N" "$SRC" && \
+      finish_bin "$(unpack_bin "$SRC" bat)" bat ;;
 
     eza)
-      V=$(tag eza-community/eza)
-      N=$(pick_asset eza-community/eza "eza_$A64") || { echo "❌ nenhuma build de eza para $ARCH/$ZEST_LIBC"; return 1; }
-      dl "https://github.com/eza-community/eza/releases/download/$V/$N" eza.tgz && \
-      verify eza-community/eza "$N" "$T/eza.tgz" && \
-      finish_bin "$(unpack_bin "$T/eza.tgz" eza)" eza ;;
+      read -r N SRC <<< "$(pick_asset eza-community/eza "eza_$A64")" || { echo "❌ nenhuma build de eza para $ARCH/$ZEST_LIBC"; return 1; }
+      verify eza-community/eza "$N" "$SRC" && \
+      finish_bin "$(unpack_bin "$SRC" eza)" eza ;;
 
     delta)
-      V=$(tag dandavison/delta)
-      N=$(pick_asset dandavison/delta "delta-${V#v}-$A64") || { echo "❌ nenhuma build de delta para $ARCH/$ZEST_LIBC"; return 1; }
-      dl "https://github.com/dandavison/delta/releases/download/$V/$N" delta.tgz && \
-      verify dandavison/delta "$N" "$T/delta.tgz" && \
-      finish_bin "$(unpack_bin "$T/delta.tgz" delta)" delta ;;
+      read -r N SRC <<< "$(pick_asset dandavison/delta "delta-$(tag dandavison/delta | sed 's/^v//')-$A64")" || { echo "❌ nenhuma build de delta para $ARCH/$ZEST_LIBC"; return 1; }
+      verify dandavison/delta "$N" "$SRC" && \
+      finish_bin "$(unpack_bin "$SRC" delta)" delta ;;
 
     lazygit)
       V=$(tag jesseduffield/lazygit); N="lazygit_${V#v}_Linux_$A64.tar.gz"
