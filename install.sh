@@ -425,6 +425,11 @@ fi
 for _s in "$REPO_DIR/lib/sweep.sh" "${ZEST_HOME:-$HOME/.config/zest}/lib/sweep.sh"; do
   [[ -f "$_s" ]] && source "$_s" && break
 done
+# Exporto ZSH antes de varrer. Em zsh interativo $ZSH é definido pelo .zshrc do
+# Oh My Zsh; num script bash ele não existe, e sem ele a linha
+# 'source $ZSH/oh-my-zsh.sh' não resolve — e o sweep comentaria o carregamento
+# do Oh My Zsh, o que derruba TODOS os plugins (autossugestão incluída).
+[[ -d "$HOME/.oh-my-zsh" ]] && export ZSH="${ZSH:-$HOME/.oh-my-zsh}"
 zest_sweep_orphans "$ZSHRC"
 
 # 5) bloco marcado no .zshrc (nunca duplica)

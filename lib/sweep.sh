@@ -11,11 +11,15 @@
 #   install.sh  → passo 4b, antes de escrever o bloco do Zest
 #
 # Biblioteca: não altera opções globais do shell. Quem faz 'source' decide o
-# próprio regime de erro — install.sh usa 'set -euo pipefail'.
+# próprio regime de erro — install.sh usa 'set -euo pipefail'. Por isso NENHUMA
+# variável aqui é lida crua: sempre '${VAR:-padrão}', senão um '$ZSH' inexistente
+# aborta a instalação inteira (foi o bug que sumia com os plugins).
 #
-# Três formatos: absoluto (/caminho), tilde (~/caminho) e variável
-# ($ZSH/caminho). O 'eval' aqui só serve para EXPANDIR a variável na checagem
-# de existência — o source em si nunca é executado pelo Zest.
+# Regra central: comentar é uma intervenção. Só comento quando TENHO CERTEZA de
+# que o alvo não existe — isto é, quando consegui resolver o caminho por inteiro.
+# Se sobrou '$' (variável que não conheço) ou '*' (glob), a linha é deixada em
+# paz. Falso positivo quebra o shell do usuário; falso negativo é só uma linha
+# morta a mais, e é o erro que eu escolho cometer.
 
 # zest_sweep_orphans <arquivo>
 zest_sweep_orphans() {
@@ -23,28 +27,37 @@ zest_sweep_orphans() {
   [[ -f "$f" ]] || return 0
   # procura 'source X' ou '. X' onde X tem barra (é caminho)
   if grep -qE '^[[:space:]]*(source|\.)[[:space:]]+[^;|&]*[/]' "$f"; then
-    tmp="$(mktemp)"
-    awk -v HOME="$HOME" -v ZSH="$ZSH" '
+    tmp="$(mktemp)" || return 0
+    # Caminhos que sei resolver. $ZSH é o diretório do Oh My Zsh; quem roda o
+    # sweep sem exportar ZSH (install.sh, CI, bash) recebe o caminho canônico.
+    local _zsh="${ZSH:-$HOME/.oh-my-zsh}"
+    awk -v HOME="$HOME" -v ZSH="$_zsh" '
       /^[[:space:]]*(source|\.)[[:space:]]+[^;|&]*[/]/ {
         line = $0
         sub(/^[[:space:]]*(source|\.)[[:space:]]+/, "", line)
-        sub(/[[:space:];|&]+.*$/, "", line)
-        gsub(/^~/, HOME, line)
-        gsub(/\$ZSH/, ZSH, line)
-        gsub(/\$HOME/, HOME, line)
-        # NÃO comenta frameworks principais conhecidos (mesmo se $ZSH vazio)
-        if (line ~ /oh-my-zsh\.sh$|\.starship\.sh$|zinit\.zsh$|powerlevel10k\/powerlevel10k\.zsh-theme$/) {
-          print
-          next
+        sub(/[[:space:];|&|]+.*$/, "", line)
+        gsub(/^"|"$/, "", line)
+        gsub(/^'\''|'\''$/, "", line)
+        path = line
+        gsub(/^~/, HOME, path)
+        gsub(/\$\{?ZSH\}?/, ZSH, path)
+        gsub(/\$\{?HOME\}?/, HOME, path)
+        gsub(/\$\{?USERPROFILE\}?/, HOME, path)
+        # resolvi tudo? sobrou $ ou glob => não sei o alvo => não toco.
+        if (path ~ /[$*?]/) { print; next }
+        # frameworks principais: nunca comentar, mesmo se algo der errado.
+        if (path ~ /(oh-my-zsh\.sh|\.starship\.sh|zinit\.zsh|antidote\.zsh|powerlevel10k\.zsh-theme|oh-my-posh\.zsh)$/) {
+          print; next
         }
-        if (system("test -e " line) != 0) {
-          print "# [zest] source órfão: " line
+        if (system("test -e " quote(path)) != 0) {
+          print "# [zest] source órfão (arquivo não existe): " line
           next
         }
         print
         next
       }
       { print }
+      function quote(s) { gsub(/'\''/, "'\''\\\\'\'''\''", s); return "\047" s "\047" }
     ' "$f" > "$tmp" && cat "$tmp" > "$f" && rm -f "$tmp"
     if grep -qE '^[[:space:]]*# \[zest\] source órfão' "$f"; then
       echo "· limpei referências órfãs em $f (frameworks desinstalados)"

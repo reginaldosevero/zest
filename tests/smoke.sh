@@ -271,25 +271,56 @@ rm -rf "$P_HOME" "$P_SHIM"
 
 # 18) lib/sweep.sh comenta 'source X' onde X não existe — sem tocar no conteúdo
 #     real do usuário (nunca apaga, só comenta). Testa os três formatos:
-#     absoluto (/caminho), tilde (~/caminho) e variável ($VAR/caminho).
-#     Frameworks principais conhecidos (oh-my-zsh, starship, zinit, p10k) NÃO
-#     são comentados mesmo se a variável não expandir — evitam o bug de
-#     comentar 'source $ZSH/oh-my-zsh.sh' quando $ZSH vazio no subshell.
+#     absoluto (/caminho), tilde (~/caminho) e variável conhecida ($ZSH, $HOME).
+#     Regra que o teste garante: só se comenta com CERTEZA. Uma variável que o
+#     sweep não conhece ($MINHA_VAR) é deixada intacta, porque um falso positivo
+#     quebra o shell do usuário. E 'source $ZSH/oh-my-zsh.sh' NUNCA é comentado:
+#     comentar essa linha derruba o Oh My Zsh e todos os plugins — foi o bug que
+#     fez a autossugestão sumir. Roda com 'set -u' para pegar o '$ZSH: unbound'.
 S_HOME="$(mktemp -d)"
-printf 'export ZSH="$HOME/.oh-my-zsh"\nsource $ZSH/oh-my-zsh.sh\n\nalias ll="ls -la"\nsource ~/naoexiste/roda.sh\nsource /caminho/que/nao/existe.sh\n' > "$S_HOME/.zshrc"
+printf 'export ZSH="$HOME/.oh-my-zsh"\nsource $ZSH/oh-my-zsh.sh\n\nalias ll="ls -la"\nsource ~/naoexiste/roda.sh\nsource /caminho/que/nao/existe.sh\nsource $MINHA_VAR/bin/roda.sh\n' > "$S_HOME/.zshrc"
 if env -i HOME="$S_HOME" PATH="$PATH" bash -c "
+  set -euo pipefail
   source '$(dirname "$0")/../lib/sweep.sh'
   zest_sweep_orphans '$S_HOME/.zshrc'
-" && ! grep -q '# \[zest\] source órfão: \$ZSH/oh-my-zsh.sh' "$S_HOME/.zshrc" \
-   && grep -qE '# \[zest\] source órfão: (~/naoexiste/roda.sh|'"$S_HOME"'/naoexiste/roda.sh)' "$S_HOME/.zshrc" \
-   && grep -q '# \[zest\] source órfão: /caminho/que/nao/existe.sh' "$S_HOME/.zshrc" \
-   && grep -q 'alias ll="ls -la"' "$S_HOME/.zshrc" \
-   && grep -q 'source \$ZSH/oh-my-zsh.sh' "$S_HOME/.zshrc"; then
-  echo "  ✓ sweep.sh comenta órfãos (absoluto, tilde, \$VAR) e protege frameworks"
+" && grep -q '^[[:space:]]*source \$ZSH/oh-my-zsh.sh' "$S_HOME/.zshrc" \
+   && grep -qE '# \[zest\] source órfão.*: (~/naoexiste/roda.sh|'"$S_HOME"'/naoexiste/roda.sh)' "$S_HOME/.zshrc" \
+   && grep -q '# \[zest\] source órfão.*: /caminho/que/nao/existe.sh' "$S_HOME/.zshrc" \
+   && grep -q '^[[:space:]]*source \$MINHA_VAR/bin/roda.sh' "$S_HOME/.zshrc" \
+   && grep -q 'alias ll="ls -la"' "$S_HOME/.zshrc"; then
+  echo "  ✓ sweep.sh comenta órfãos certos, poupa frameworks e não toca em \$VAR desconhecida"
 else
   echo "  ✗ sweep.sh não comentou os formatos corretamente ou protegeu frameworks"; FAIL=1
 fi
 rm -rf "$S_HOME"
+
+# 19) autossugestão VISÍVEL: um zsh interativo num pseudo-terminal de verdade
+#     mostra o complemento vindo do histórico? 'type _zsh_autosuggest_start' não
+#     basta — o usuário não vê função, vê cinza atrás do cursor. Roda numa HOME
+#     de mentira, com um .zshrc mínimo que só carrega o plugin: sem Oh My Zsh e
+#     sem rede. Pula (não falha) onde faltar python3, zsh ou o plugin.
+AS_SRC=""
+for c in "$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh" \
+         /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh \
+         /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh; do
+  [[ -f "$c" ]] && AS_SRC="$c" && break
+done
+AS_HOME="$(mktemp -d)"
+if command -v python3 >/dev/null 2>&1 && command -v zsh >/dev/null 2>&1 && [[ -n "$AS_SRC" ]]; then
+  { printf 'export HISTFILE="%s/.zsh_history"\n' "$AS_HOME"
+    printf 'HISTSIZE=1000 SAVEHIST=1000\n'
+    printf 'source "%s"\n' "$AS_SRC"
+  } > "$AS_HOME/.zshrc"
+  if env -i HOME="$AS_HOME" PATH="$PATH" TERM=xterm-256color LANG=C.UTF-8 \
+       python3 "$(dirname "$0")/autosuggest.py" >/dev/null 2>&1; then
+    echo "  ✓ autossugestão aparece na tela (PTY real)"
+  else
+    echo "  ✗ autossugestão não apareceu na tela — o plugin carrega mas não sugere"; FAIL=1
+  fi
+else
+  echo "· autossugestão: pulado (falta python3, zsh ou o plugin)"
+fi
+rm -rf "$AS_HOME"
 
 echo "════════════════════"
 (( FAIL == 0 )) && echo "✅ smoke test passou" || { echo "❌ smoke test falhou"; exit 1; }
