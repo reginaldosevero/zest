@@ -15,15 +15,69 @@ fi
 # estourar "BASH_SOURCE[0]: unbound variable".
 ZEST_SRC="${BASH_SOURCE[0]:-${BASH_SOURCE[1]:-$0}}"
 REPO_DIR="$(cd -- "$(dirname -- "$ZEST_SRC")" >/dev/null 2>&1 && pwd)" || REPO_DIR=""
-if [[ ! -f "$REPO_DIR/lib/tools.list" ]]; then
-  echo "❌ Não encontrei os arquivos do Zest ao lado deste script."
-  echo "   O instalador precisa do repositório (lib/, modules/). Rode assim:"
-  echo "     git clone https://github.com/reginaldosevero/zest.git"
-  echo "     cd zest && ./install.sh"
-  exit 1
+if [[ ! -f "$REPO_DIR/lib/tools.list" && -n "${ZEST_HOME:-}" && -f "$ZEST_HOME/lib/tools.list" ]]; then
+  REPO_DIR="$ZEST_HOME"
 fi
+NEED_SRC_RESOLVE=0
+if [[ ! -f "$REPO_DIR/lib/tools.list" ]]; then
+  # O script não veio de um checkout (ex.: "curl … | bash"). O download do repo
+  # precisa de git OU curl/wget — que podem faltar numa máquina zerada — e
+  # instalar pacotes precisa saber o gerenciador da distro. lib/distro.sh mora no
+  # repo que ainda não temos, então os wrappers abaixo seguram o bootstrap sozinhos.
+  # Assim que o repo chega, o lib/distro.sh real é lido e passa a valer.
+  NEED_SRC_RESOLVE=1
+fi
+# roda o gerenciador com sudo, ou su no Debian cru (container root sem sudo).
+# Fora do 'if' de propósito: os wrappers são autossuficientes mesmo se o
+# lib/distro.sh do checkout estiver ausente (checkout quebrado).
+pm_run() {
+  local pm="$1"; shift
+  if command -v sudo >/dev/null 2>&1; then sudo "$pm" "$@"
+  elif command -v su >/dev/null 2>&1; then su -c "$pm $*"
+  else echo "❌ Sem sudo e sem su — rode manualmente: $pm $*" >&2; return 1; fi
+}
+pm_detect() {
+  if declare -F zest_pm_detect >/dev/null 2>&1; then zest_pm_detect
+  else
+    local pm
+    for pm in apt-get dnf pacman zypper apk; do
+      command -v "$pm" >/dev/null 2>&1 && { printf '%s\n' "$pm"; return 0; }
+    done
+    return 1
+  fi
+}
+pm_install() {
+  if declare -F zest_pm_install >/dev/null 2>&1; then zest_pm_install "$@"
+  else
+    local pm="$1"; shift
+    case "$pm" in
+      apt-get) pm_run apt-get install -y "$@" ;;
+      dnf)     pm_run dnf install -y "$@" ;;
+      pacman)  pm_run pacman -Sy --noconfirm "$@" ;;
+      zypper)  pm_run zypper --non-interactive install "$@" ;;
+      apk)     pm_run apk add "$@" ;;
+      *) return 1 ;;
+    esac
+  fi
+}
+pm_update() {
+  if declare -F zest_pm_update >/dev/null 2>&1; then zest_pm_update "$@"
+  else
+    case "$1" in
+      apt-get) pm_run apt-get update -q ;;
+      dnf)     pm_run dnf makecache ;;
+      pacman)  pm_run pacman -Sy ;;
+      zypper)  pm_run zypper --non-interactive refresh ;;
+      apk)     pm_run apk update ;;
+      *) return 1 ;;
+    esac
+  fi
+}
 # detecção de distro (lib/distro.sh) — usada no passo 1 e no install-tool
-source "$REPO_DIR/lib/distro.sh"
+if [[ -f "$REPO_DIR/lib/distro.sh" ]]; then
+  # shellcheck disable=SC1090  # o caminho só é conhecido na execução
+  source "$REPO_DIR/lib/distro.sh"
+fi
 DEST="$HOME/.config/zest"
 ZSHRC="$HOME/.zshrc"
 WITH_PLUGINS=0
@@ -42,12 +96,16 @@ done
 #   resto da instalação e nada seria perguntado. Então, quando o stdin não é um
 #   terminal, a leitura vai para /dev/tty (o terminal de verdade). Sem terminal
 #   nenhum (CI, cron), devolve 1 e quem chama usa o padrão — nunca lê do stdin.
+#   O 2>/dev/null vem ANTES do < /dev/tty de propósito: bash aplica as
+#   redireções da esquerda para a direita, e num container sem terminal de
+#   controle a abertura falha — com a ordem inversa o "No such device or
+#   address" aparecia na tela no meio da instalação.
 ask() {
   local _resposta
   if [[ -t 0 ]]; then
     IFS= read -r -p "$1" _resposta || return 1
-  elif [[ -c /dev/tty ]]; then
-    IFS= read -r -p "$1" _resposta < /dev/tty || return 1
+  elif IFS= read -r -p "$1" _resposta 2>/dev/null < /dev/tty; then
+    :
   else
     return 1
   fi
@@ -92,16 +150,28 @@ if [[ -z "${ZEST_PROMPT:-}" && ! -f "$DEST/prompt" && $HAS_PROMPT == 0 ]]; then
 fi
 
 # 1) dependências — o Zest instala SOZINHO o que falta (sudo, ou su no Debian cru)
+#
+# Cada dependência só entra na lista quando o fluxo realmente a usa. Cobrar
+# tudo sempre derrubava a instalação em container enxuto: sem git e com curl,
+# o `NEED+=(git)` parava o usuário com "não encontrei apt/… para instalá-lo"
+# quando o tarball do GitHub (curl) já teria bastado.
 NEED=()
 command -v zsh >/dev/null 2>&1 || NEED+=(zsh)
-command -v git >/dev/null 2>&1 || NEED+=(git)
-command -v curl >/dev/null 2>&1 || NEED+=(curl)
+# git: necessário para clonar Oh My Zsh e os plugins. Baixar o próprio Zest
+# tem alternativa (tarball via curl/wget), então git não é obrigatório.
+if [[ $WITH_OMZ == 1 || $WITH_PLUGINS == 1 ]]; then
+  command -v git >/dev/null 2>&1 || NEED+=(git)
+fi
+# um baixador: as receitas de ferramenta e o download do repo aceitam curl OU wget
+if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then
+  NEED+=(curl)
+fi
 if [[ $WITH_PLUGINS == 1 && ! -d "$HOME/.oh-my-zsh" ]]; then
   command -v python3 >/dev/null 2>&1 || NEED+=(python3)
 fi
 
 if (( ${#NEED[@]} )); then
-  PM=$(zest_pm_detect) || PM=""
+  PM=$(pm_detect) || PM=""
   if [[ -z "$PM" ]]; then
     echo "❌ Faltam: ${NEED[*]} — e não encontrei apt/dnf/pacman/zypper/apk para instalá-los."
     echo "   Instale manualmente e rode este instalador de novo."
@@ -110,8 +180,8 @@ if (( ${#NEED[@]} )); then
 
   echo "📦 Faltam dependências: ${NEED[*]}"
   echo "   Gerenciador detectado: $PM — pode pedir sua senha (sudo) ou a do root (su)…"
-  zest_pm_update "$PM" || true
-  if zest_pm_install "$PM" "${NEED[@]}"; then
+  pm_update "$PM" || true
+  if pm_install "$PM" "${NEED[@]}"; then
     echo "✓ dependências instaladas (via $PM)"
   else
     echo "❌ Não consegui instalar automaticamente. Faça manualmente e rode de novo:"
@@ -126,6 +196,66 @@ if (( ${#NEED[@]} )); then
   fi
 fi
 echo "✓ zsh encontrado: $(zsh --version)"
+
+# 1b) se o script não estava em um checkout, baixa o Zest AGORA (git e curl já
+#     existem, ou a instalação acaba com uma mensagem clara).
+# Origem configurável — quem mantém um fork aponta para o próprio:
+#   ZEST_ORIGIN=https://github.com/eu/zest ./install.sh
+# (o nome é ZEST_ORIGIN de propósito: ZEST_REPO já é usado pelo bin/zest como o
+#  DIRETÓRIO do repositório, e dividir a variável faria o CLI procurar módulos
+#  num caminho "dono/zest".)
+ZEST_ORIGIN="${ZEST_ORIGIN:-https://github.com/reginaldosevero/zest}"
+# um dispositivo só existe de verdade se abrir: /dev/tty está presente como
+# char device em container sem terminal de controle, e '[[ -c ]]' mente lá.
+has_tty() { { exec 3</dev/tty; } 2>/dev/null && { exec 3<&-; return 0; }; return 1; }
+zest_src_resolve() {
+  local dest="$HOME/.zest-src"
+  mkdir -p "$dest"
+  if command -v git >/dev/null 2>&1; then
+    echo "· clonando o Zest em $dest…"
+    if git clone --depth 1 -q "$ZEST_ORIGIN.git" "$dest/zest"; then
+      REPO_DIR="$dest/zest"
+      return 0
+    fi
+    echo "· clone falhou — tentando o tarball…"
+  fi
+  # sem git (ou clone falhou): baixa o tarball do branch padrão. curl OU wget.
+  local url="$ZEST_ORIGIN/archive/refs/heads/master.tar.gz"
+  if command -v curl >/dev/null 2>&1; then
+    echo "· baixando o Zest em $dest (curl)…"
+    curl -fsSL --proto '=https' "$url" -o "$dest/zest.tar.gz" 2>/dev/null || return 1
+  elif command -v wget >/dev/null 2>&1; then
+    echo "· baixando o Zest em $dest (wget)…"
+    wget -q --https-only -O "$dest/zest.tar.gz" "$url" || return 1
+  else
+    return 1
+  fi
+  if ! tar xzf "$dest/zest.tar.gz" -C "$dest" 2>/dev/null; then
+    rm -f "$dest/zest.tar.gz"
+    # tar xzf precisa de gzip: sem ele o erro é esse, e não "falta git/curl".
+    command -v gzip >/dev/null 2>&1 || echo "   · falta o gzip (o tar dele precisa para descompactar)" >&2
+    return 1
+  fi
+  rm -f "$dest/zest.tar.gz"
+  REPO_DIR=$(find "$dest" -maxdepth 1 -mindepth 1 -name 'zest-*' -type d -print -quit)
+  [[ -n "$REPO_DIR" ]]
+}
+if [[ "$NEED_SRC_RESOLVE" == 1 ]]; then
+  if ! zest_src_resolve || [[ ! -f "$REPO_DIR/lib/tools.list" ]]; then
+    echo "❌ Não consegui baixar o Zest de $ZEST_ORIGIN."
+    echo "   Precisa de git, OU de curl/wget + gzip. Rode manualmente:"
+    echo "     git clone $ZEST_ORIGIN.git"
+    echo "     cd zest && ./install.sh"
+    echo "   Ou baixe o tarball:"
+    echo "     curl -fsSL $ZEST_ORIGIN/archive/refs/heads/master.tar.gz -o zest.tar.gz"
+    echo "     tar xzf zest.tar.gz && cd zest-master && ./install.sh"
+    exit 1
+  fi
+  # agora que o repo chegou, o lib/distro.sh real passa a valer
+  # shellcheck disable=SC1091
+  source "$REPO_DIR/lib/distro.sh"
+  echo "✓ fontes do Zest em $REPO_DIR"
+fi
 
 # 2) Oh My Zsh: instala ANTES de mexer no .zshrc (para ele criar o template com plugins=())
 # Créditos: Oh My Zsh é projeto de Robby Russell e comunidade — https://ohmyzsh.com (MIT)
@@ -179,7 +309,7 @@ else
   cat >> "$ZSHRC" <<'EOF'
 
 # >>> zest >>>
-# Zest 🌶️ — o tempero do seu terminal (https://github.com/reginaldosevero/zest)
+# Zest 🌶️ — o tempero do seu terminal (open source, MIT)
 # Remoção limpa: rode o uninstall.sh do repositório
 export ZEST_HOME="$HOME/.config/zest"
 for _zmod in "$ZEST_HOME"/modules/*.zsh(N); do source "$_zmod"; done
@@ -276,8 +406,15 @@ fi
 CURSHELL=$(getent passwd "$(id -un)" 2>/dev/null | cut -d: -f7)
 [[ -z "$CURSHELL" ]] && CURSHELL="${SHELL:-/bin/bash}"
 ZSHBIN="$(command -v zsh)"
+# "É o mesmo arquivo?" com o teste nativo -ef, que compara device+inode. Em
+# distro com usrmerge /bin/zsh e /usr/bin/zsh são o mesmo arquivo, mas o passwd
+# pode ter gravado qualquer um dos dois: comparando strings, o instalador dizia
+# "seu shell não é zsh" numa conta que já usava zsh. -ef não depende de
+# realpath/readlink, que faltam em container enxuto.
 SHELL_OK=0
-[[ "$CURSHELL" == "$ZSHBIN" ]] && SHELL_OK=1
+if [[ -n "$ZSHBIN" && -n "$CURSHELL" && "$CURSHELL" -ef "$ZSHBIN" ]]; then
+  SHELL_OK=1
+fi
 
 if (( ! SHELL_OK )); then
   echo ""
@@ -292,16 +429,16 @@ if (( ! SHELL_OK )); then
     if chsh -s "$ZSHBIN" 2>/dev/null; then
       SHELL_OK=1
     # b) com terminal de verdade o chsh pede a senha do próprio usuário
-    elif [[ -c /dev/tty ]] && chsh -s "$ZSHBIN" < /dev/tty 2>/dev/null; then
+    elif has_tty && chsh -s "$ZSHBIN" 2>/dev/null < /dev/tty; then
       SHELL_OK=1
     # c) sudo sem senha (containers e CI costumam ter)
     elif command -v sudo >/dev/null 2>&1 \
       && sudo -n chsh -s "$ZSHBIN" "$USER_NAME" 2>/dev/null; then
       SHELL_OK=1
     # d) sudo pedindo a senha — a troca já foi aprovada na pergunta acima
-    elif [[ -c /dev/tty ]] && command -v sudo >/dev/null 2>&1; then
+    elif has_tty && command -v sudo >/dev/null 2>&1; then
       echo "   Último caminho: sudo (ele pede sua senha)"
-      if sudo chsh -s "$ZSHBIN" "$USER_NAME" < /dev/tty; then
+      if sudo chsh -s "$ZSHBIN" "$USER_NAME" 2>/dev/null < /dev/tty; then
         SHELL_OK=1
       fi
     fi

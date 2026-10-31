@@ -104,9 +104,15 @@ digest_for() { # repo asset -> sha256 oficial (vazio se o GitHub não informar)
         }'
 }
 
-check_elf() { # arquivo — é um binário ELF de verdade?
-  [[ "$(head -c 4 "$1" 2>/dev/null | od -An -tx1 | tr -d ' \n')" == "7f454c46" ]]
-}
+# ------------------------------------------------------------
+#  PORTAGEM (check_elf, unpack_bin, finish_bin) vem de lib/install-helpers.sh
+#  — o smoke test usa as MESMAS funções; cópias divergem (ver CHANGELOG 0.2.0).
+# ------------------------------------------------------------
+for _h in "$HERE/install-helpers.sh" "${ZEST_HOME:-$HOME/.config/zest}/lib/install-helpers.sh"; do
+  # shellcheck disable=SC1090,SC1091  # o caminho só é conhecido na execução
+  [[ -f "$_h" ]] && source "$_h" && break
+done
+unset _h
 
 verify() { # repo asset arquivo — confere o sha256 publicado pelo GitHub
   local want got
@@ -171,57 +177,53 @@ do_install() {
       V=$(tag junegunn/fzf); N="fzf-${V#v}-linux_$A.tar.gz"
       dl "https://github.com/junegunn/fzf/releases/download/$V/$N" fzf.tgz && \
       verify junegunn/fzf "$N" "$T/fzf.tgz" && \
-      tar xzf "$T/fzf.tgz" -C "$T" fzf && check_elf "$T/fzf" && mv "$T/fzf" "$BIN/fzf" ;;
+      finish_bin "$(unpack_bin "$T/fzf.tgz" fzf)" fzf ;;
 
     ripgrep)
       V=$(tag BurntSushi/ripgrep); N="ripgrep-${V#v}-$A64-unknown-linux-musl.tar.gz"
       dl "https://github.com/BurntSushi/ripgrep/releases/download/$V/$N" rg.tgz && \
       verify BurntSushi/ripgrep "$N" "$T/rg.tgz" && \
-      tar xzf "$T/rg.tgz" -C "$T" && check_elf "$T/ripgrep-${V#v}-$A64-unknown-linux-musl/rg" && \
-      mv "$T/ripgrep-${V#v}-$A64-unknown-linux-musl/rg" "$BIN/rg" ;;
+      finish_bin "$(unpack_bin "$T/rg.tgz" rg)" rg ;;
 
     fd)
       V=$(tag sharkdp/fd)
       N=$(pick_asset sharkdp/fd "fd-${V}-$A64") || { echo "❌ nenhuma build de fd para $ARCH/$ZEST_LIBC"; return 1; }
       dl "https://github.com/sharkdp/fd/releases/download/$V/$N" fd.tgz && \
       verify sharkdp/fd "$N" "$T/fd.tgz" && \
-      tar xzf "$T/fd.tgz" -C "$T" && check_elf "$T/fd-${V}-$A64-unknown-linux-$ZEST_LIBC/fd" && \
-      mv "$T/fd-${V}-$A64-unknown-linux-$ZEST_LIBC/fd" "$BIN/fd" ;;
+      finish_bin "$(unpack_bin "$T/fd.tgz" fd)" fd ;;
 
     bat)
       V=$(tag sharkdp/bat)
       N=$(pick_asset sharkdp/bat "bat-${V}-$A64") || { echo "❌ nenhuma build de bat para $ARCH/$ZEST_LIBC"; return 1; }
       dl "https://github.com/sharkdp/bat/releases/download/$V/$N" bat.tgz && \
       verify sharkdp/bat "$N" "$T/bat.tgz" && \
-      tar xzf "$T/bat.tgz" -C "$T" && check_elf "$T/bat-${V}-$A64-unknown-linux-$ZEST_LIBC/bat" && \
-      mv "$T/bat-${V}-$A64-unknown-linux-$ZEST_LIBC/bat" "$BIN/bat" ;;
+      finish_bin "$(unpack_bin "$T/bat.tgz" bat)" bat ;;
 
     eza)
       V=$(tag eza-community/eza)
       N=$(pick_asset eza-community/eza "eza_$A64") || { echo "❌ nenhuma build de eza para $ARCH/$ZEST_LIBC"; return 1; }
       dl "https://github.com/eza-community/eza/releases/download/$V/$N" eza.tgz && \
       verify eza-community/eza "$N" "$T/eza.tgz" && \
-      tar xzf "$T/eza.tgz" -C "$T" && check_elf "$T/eza" && mv "$T/eza" "$BIN/eza" ;;
+      finish_bin "$(unpack_bin "$T/eza.tgz" eza)" eza ;;
 
     delta)
       V=$(tag dandavison/delta)
       N=$(pick_asset dandavison/delta "delta-${V#v}-$A64") || { echo "❌ nenhuma build de delta para $ARCH/$ZEST_LIBC"; return 1; }
       dl "https://github.com/dandavison/delta/releases/download/$V/$N" delta.tgz && \
       verify dandavison/delta "$N" "$T/delta.tgz" && \
-      tar xzf "$T/delta.tgz" -C "$T" && check_elf "$T/delta-${V#v}-$A64-unknown-linux-$ZEST_LIBC/delta" && \
-      mv "$T/delta-${V#v}-$A64-unknown-linux-$ZEST_LIBC/delta" "$BIN/delta" ;;
+      finish_bin "$(unpack_bin "$T/delta.tgz" delta)" delta ;;
 
     lazygit)
       V=$(tag jesseduffield/lazygit); N="lazygit_${V#v}_Linux_$A64.tar.gz"
       dl "https://github.com/jesseduffield/lazygit/releases/download/$V/$N" lg.tgz && \
       verify jesseduffield/lazygit "$N" "$T/lg.tgz" && \
-      tar xzf "$T/lg.tgz" -C "$T" lazygit && check_elf "$T/lazygit" && mv "$T/lazygit" "$BIN/lazygit" ;;
+      finish_bin "$(unpack_bin "$T/lg.tgz" lazygit)" lazygit ;;
 
     duf)
       V=$(tag muesli/duf); N="duf_${V#v}_linux_$A64.tar.gz"
       dl "https://github.com/muesli/duf/releases/download/$V/$N" duf.tgz && \
       verify muesli/duf "$N" "$T/duf.tgz" && \
-      tar xzf "$T/duf.tgz" -C "$T" duf && check_elf "$T/duf" && mv "$T/duf" "$BIN/duf" ;;
+      finish_bin "$(unpack_bin "$T/duf.tgz" duf)" duf ;;
 
     jq)
       N="jq-linux-$A"
@@ -251,29 +253,27 @@ do_install() {
       V=$(tag ajeetdsouza/zoxide); N="zoxide-${V#v}-$A64-unknown-linux-musl.tar.gz"
       dl "https://github.com/ajeetdsouza/zoxide/releases/download/$V/$N" zoxide.tgz && \
       verify ajeetdsouza/zoxide "$N" "$T/zoxide.tgz" && \
-      tar xzf "$T/zoxide.tgz" -C "$T" zoxide && check_elf "$T/zoxide" && mv "$T/zoxide" "$BIN/zoxide" ;;
+      finish_bin "$(unpack_bin "$T/zoxide.tgz" zoxide)" zoxide ;;
 
     atuin)
       N="atuin-$A64-unknown-linux-musl.tar.gz"
       dl "https://github.com/atuinsh/atuin/releases/latest/download/$N" atuin.tgz && \
       verify atuinsh/atuin "$N" "$T/atuin.tgz" && \
-      tar xzf "$T/atuin.tgz" -C "$T" atuin && check_elf "$T/atuin" && mv "$T/atuin" "$BIN/atuin" ;;
+      finish_bin "$(unpack_bin "$T/atuin.tgz" atuin)" atuin ;;
 
     mise)
       V=$(tag jdx/mise)
       N="mise-$V-linux-$MX64"
       dl "https://github.com/jdx/mise/releases/download/$V/$N" mise && \
-      verify jdx/mise "$N" "$T/mise" && check_elf "$T/mise" && \
-      chmod +x "$T/mise" && mv "$T/mise" "$BIN/mise" ;;
+      verify jdx/mise "$N" "$T/mise" && \
+      finish_bin "$T/mise" mise ;;
 
     uv)
       V=$(tag astral-sh/uv)
       N="uv-$A64-unknown-linux-$ZEST_LIBC.tar.gz"
       dl "https://github.com/astral-sh/uv/releases/download/$V/$N" uv.tgz && \
       verify astral-sh/uv "$N" "$T/uv.tgz" && \
-      tar xzf "$T/uv.tgz" -C "$T" uv-$A64-unknown-linux-$ZEST_LIBC/uv && \
-      check_elf "$T/uv-$A64-unknown-linux-$ZEST_LIBC/uv" && \
-      mv "$T/uv-$A64-unknown-linux-$ZEST_LIBC/uv" "$BIN/uv" ;;
+      finish_bin "$(unpack_bin "$T/uv.tgz" uv)" uv ;;
 
     thefuck)
       # thefuck é instalação de Python — depende do uv. Se o uv já está em

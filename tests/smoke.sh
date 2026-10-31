@@ -133,7 +133,12 @@ READ_CRU=$(awk '
   /^[[:space:]]*(IFS=[^[:space:]]+[[:space:]]+)?read( -[a-zA-Z]+)+/ && $0 !~ /\/dev\/tty/ && $0 !~ /<</ \
     { print NR ": " $0 }
 ' install.sh)
-if [[ -z "$READ_CRU" ]] && grep -q 'read -r -p "$1" _resposta < /dev/tty' install.sh; then
+# o corpo do ask() tem de ter um caminho pelo /dev/tty (senão vira leitura de stdin)
+if [[ -z "$READ_CRU" ]] \
+   && awk '/^ask\(\) \{/ { in_ask = 1 }
+           in_ask && /^\}/ { in_ask = 0 }
+           in_ask && /read .*\/dev\/tty/ { found = 1 }
+           END { exit !found }' install.sh; then
   echo "  ✓ pergunta via /dev/tty (funciona em curl|bash)"
 else
   echo "  ✗ install.sh lê do stdin (quebra curl|bash) — use ask():$READ_CRU"; FAIL=1
@@ -178,6 +183,67 @@ if grep -q 'REPO_DIR/lib/tools.list' install.sh \
   echo "  ✓ install.sh instala a lista de tools.list"
 else
   echo "  ✗ install.sh tem lista de ferramentas à mão (use tools.list)"; FAIL=1
+fi
+
+echo "════════════════════"
+# 14) o extrator REAL (lib/install-helpers.sh) acha o ELF em qualquer layout
+#     (v0.3.1: atuin passou a vir dentro de "atuin-<triple>/" e um "tar … atuin"
+#      fixo quebrou o install em campo, com checksum OK — a impressão era de
+#      download corrompido, era layout do asset. Teste offline, sem rede:
+#      usa as MESMAS funções do instalador (uma cópia aqui divergiria dele) e
+#      confirma que resolve raiz, subpasta e recusa arquivos sem ELF.)
+EX_HOME="$(mktemp -d)"
+mkdir -p "$EX_HOME/bin" "$EX_HOME/pkg/raiz" "$EX_HOME/pkg/sub/atuin-x86_64-unknown-linux-musl" "$EX_HOME/pkg/so"
+printf '\x7fELF' > "$EX_HOME/pkg/raiz/fzf"                            # layout antigo: na raiz
+printf '\x7fELF' > "$EX_HOME/pkg/sub/atuin-x86_64-unknown-linux-musl/atuin"  # layout novo: em subpasta
+printf 'nao e elf' > "$EX_HOME/pkg/so/README.md"                       # sem ELF nenhum
+tar czf "$EX_HOME/raiz.tgz"  -C "$EX_HOME/pkg" raiz
+tar czf "$EX_HOME/sub.tgz"   -C "$EX_HOME/pkg" sub
+tar czf "$EX_HOME/so.tgz"    -C "$EX_HOME/pkg" so
+EX_OUT=$(bash -c '
+  T="'"$EX_HOME"'"; BIN="'"$EX_HOME"'/bin"
+  source lib/install-helpers.sh
+  ok=0
+  # 1) binário na raiz do tarball
+  p=$(unpack_bin "$T/raiz.tgz" fzf)        || { echo "FALHOU_RAIZ"; ok=1; }
+  check_elf "$p"                            || { echo "FALHOU_RAIZ_ELF"; ok=1; }
+  # 2) binário dentro de subpasta (o caso do atuin)
+  p=$(unpack_bin "$T/sub.tgz" atuin)        || { echo "FALHOU_SUB"; ok=1; }
+  finish_bin "$p" atuin                     || { echo "FALHOU_SUB_MOV"; ok=1; }
+  [[ -x "$BIN/atuin" ]]                     || { echo "FALHOU_SUB_DESTINO"; ok=1; }
+  # 3) tarball sem ELF: precisa FALHAR com mensagem, nunca instalar lixo
+  p=$(unpack_bin "$T/so.tgz" atuin 2>/dev/null) && { echo "ACEITOU_LIXO"; ok=1; }
+  finish_bin "$p" atuin 2>/dev/null         && { echo "MOVEU_LIXO"; ok=1; }
+  (( ok == 0 )) && echo "EX_OK"
+' 2>&1)
+if echo "$EX_OUT" | grep -q EX_OK; then
+  echo "  ✓ unpack_bin resolve raiz, subpasta e recusa arquivo sem ELF"
+else
+  echo "  ✗ unpack_bin: $(echo "$EX_OUT" | tr '\n' ' ')"; FAIL=1
+fi
+rm -rf "$EX_HOME"
+
+# 15) o shell padrão é comparado como ARQUIVO, não como texto
+#     usrmerge: /bin/zsh e /usr/bin/zsh são o mesmo arquivo, e o passwd pode
+#     guardar qualquer um. Comparação de string dizia "não é zsh" para quem já
+#     usava zsh (e o instalador tentava chsh à toa).
+if grep -qE '"\$CURSHELL" -ef "\$ZSHBIN"' install.sh \
+   && ! grep -qE '"\$CURSHELL" == "\$ZSHBIN"' install.sh; then
+  echo "  ✓ shell padrão comparado por inode (-ef), não por string"
+else
+  echo "  ✗ install.sh compara o shell padrão como texto (quebra com usrmerge)"; FAIL=1
+fi
+
+# 16) nada pergunta abrindo /dev/tty às cegas
+#     '[[ -c /dev/tty ]]' mente em container sem terminal de controle: o device
+#     existe, o open falha e o "No such device or address" aparece no meio da
+#     instalação. Só o has_tty(), que testa abrindo de verdade com o erro calado.
+TTYLEAK=$(grep -nE '\[\[ -c /dev/tty \]\]|< /dev/tty' install.sh \
+  | grep -v 'exec 3<' | grep -v '2>/dev/null')
+if [[ -z "$TTYLEAK" ]] && grep -q 'has_tty()' install.sh; then
+  echo "  ✓ /dev/tty só é usado com o erro calado (nada de erro na tela)"
+else
+  echo "  ✗ install.sh abre /dev/tty sem calar o erro:$(echo "${TTYLEAK:-}" | tr '\n' ' ')"; FAIL=1
 fi
 
 echo "════════════════════"
