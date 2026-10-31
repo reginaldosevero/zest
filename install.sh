@@ -444,27 +444,31 @@ EOF
   echo "✓ bloco acrescentado ao final do $ZSHRC (nada do que já existia foi alterado)"
 fi
 
-# 6) plugins do zsh (opcional, com --with-plugins)
+# 6) zsh-autosuggestions — SEMPRE é instalado (sugestões do histórico são
+#    essenciais). Os outros plugins só com --with-plugins.
+declare -A REPOS=(
+  [zsh-autosuggestions]="https://github.com/zsh-users/zsh-autosuggestions v0.7.1"
+)
 if [[ $WITH_PLUGINS == 1 ]]; then
-  declare -A REPOS=(
-    [zsh-autosuggestions]="https://github.com/zsh-users/zsh-autosuggestions v0.7.1"
+  REPOS+=(
     [zsh-syntax-highlighting]="https://github.com/zsh-users/zsh-syntax-highlighting 0.8.0"
     [zsh-completions]="https://github.com/zsh-users/zsh-completions 0.36.0"
     [zsh-history-substring-search]="https://github.com/zsh-users/zsh-history-substring-search v1.1.0"
     [zsh-autopair]="https://github.com/hlissner/zsh-autopair v1.0"
   )
+fi
 
-  # 6a) Com Oh My Zsh: plugins em custom/plugins + lista plugins=()
-  if [[ -d "$HOME/.oh-my-zsh" ]]; then
-    CUST="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins"
-    mkdir -p "$CUST"
-    for p in "${!REPOS[@]}"; do
-      if [[ ! -d "$CUST/$p" ]]; then
-        read -r _url _ref <<< "${REPOS[$p]}"
-        git clone --depth 1 --branch "$_ref" -q "$_url" "$CUST/$p" && echo "✓ plugin clonado: $p ($_ref)"
-      fi
-    done
-    PYTHONIOENCODING=utf-8 python3 - "$ZSHRC" "${!REPOS[@]}" <<'PYEOF'
+# 6a) Com Oh My Zsh: plugins em custom/plugins + lista plugins=()
+if [[ -d "$HOME/.oh-my-zsh" ]]; then
+  CUST="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins"
+  mkdir -p "$CUST"
+  for p in "${!REPOS[@]}"; do
+    if [[ ! -d "$CUST/$p" ]]; then
+      read -r _url _ref <<< "${REPOS[$p]}"
+      git clone --depth 1 --branch "$_ref" -q "$_url" "$CUST/$p" && echo "✓ plugin clonado: $p ($_ref)"
+    fi
+  done
+  PYTHONIOENCODING=utf-8 python3 - "$ZSHRC" "${!REPOS[@]}" <<'PYEOF'
 import re, sys
 path, want = sys.argv[1], sys.argv[2:]
 src = open(path, encoding="utf-8").read()
@@ -487,25 +491,24 @@ if add:
 else:
     print("OK: todos os plugins ja estao na lista")
 PYEOF
-    grep -q '^plugins=.*zsh-autosuggestions' "$ZSHRC" && echo "✓ lista plugins=() verificada de verdade"
-  # 6c) Sem Oh My Zsh: plugins em ~/.config/zest/plugins (módulo 10 carrega)
-  else
-    PDIR="$DEST/plugins"
-    mkdir -p "$PDIR"
-    for p in "${!REPOS[@]}"; do
-      if [[ ! -d "$PDIR/$p" ]]; then
-        read -r _url _ref <<< "${REPOS[$p]}"
-        git clone --depth 1 --branch "$_ref" -q "$_url" "$PDIR/$p" && echo "✓ plugin standalone: $p ($_ref)"
-      fi
-    done
-  fi
-  # 6d) estilo das sugestões: o default do plugin é "fg=38;5;70" (cinza
-  #     escuro), que some em terminais com fundo escuro. Força um cinza claro
-  #     visível em qualquer tema. Só escreve se não estiver definido.
-  if ! grep -q '^ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE=' "$ZSHRC"; then
-    echo 'ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=244"' >> "$ZSHRC"
-    echo "✓ estilo de sugestão: fg=244 (cinza claro)"
-  fi
+  grep -q '^plugins=.*zsh-autosuggestions' "$ZSHRC" && echo "✓ lista plugins=() verificada de verdade"
+# 6b) Sem Oh My Zsh: plugins em ~/.config/zest/plugins (módulo 10 carrega)
+else
+  PDIR="$DEST/plugins"
+  mkdir -p "$PDIR"
+  for p in "${!REPOS[@]}"; do
+    if [[ ! -d "$PDIR/$p" ]]; then
+      read -r _url _ref <<< "${REPOS[$p]}"
+      git clone --depth 1 --branch "$_ref" -q "$_url" "$PDIR/$p" && echo "✓ plugin standalone: $p ($_ref)"
+    fi
+  done
+fi
+# 6c) estilo das sugestões: o default do plugin é "fg=38;5;70" (cinza
+#     escuro), que some em terminais com fundo escuro. Força um cinza claro
+#     visível em qualquer tema. Só escreve se não estiver definido.
+if ! grep -q '^ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE=' "$ZSHRC"; then
+  echo 'ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=244"' >> "$ZSHRC"
+  echo "✓ estilo de sugestão: fg=244 (cinza claro)"
 fi
 
 echo "═══════════════════════════════════════"
