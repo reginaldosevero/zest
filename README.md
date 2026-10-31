@@ -56,6 +56,20 @@ cd zest-master && ./install.sh
 
 ---
 
+### 🖥️ Cenários — qual bloco usar
+
+| Seu caso | Comando |
+|---|---|
+| **Container root, sem nada** (sem git/curl/sudo) | veja abaixo — `apt-get install curl` primeiro |
+| **VM com usuário comum, tem sudo** | `sudo apt-get install curl` primeiro, ou use o bloco "Copie ecole" |
+| **Máquina normal: já tem zsh + curl + git** | `curl ... \| tar xz && cd zest-master && ./install.sh` (ou `git clone`) |
+| **Só quer o Zest, sem Oh My Zsh** | `./install.sh` |
+| **Quer Oh My Zsh também** | `./install.sh --with-omz` |
+
+> **Máquina normal não dá erro.** Se zsh, curl e git já existem, o instalador pula a instalação de pacotes (nem pergunta senha) e vai direto para o PATH + módulos. O `.bashrc` do usuário é preservado byte a byte — só o bloco `>>> zest >>>` é acrescentado no final. Nada é apagado ou sobrescrito.
+
+---
+
 #### 🐳 Exemplo direto: **Debian/Ubuntu container limpo (root, sem nada)**
 
 ```bash
