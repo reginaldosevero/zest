@@ -34,29 +34,47 @@ O terminal Linux padrão é cru e as mensagens de erro parecem latim. O Zest acr
 
 **Você não precisa instalar dependências manualmente** — o instalador detecta o que falta (zsh, git, curl, python3) e instala sozinho, pedindo a senha do `sudo` (ou do `root` em Debian recém-instalado). Funciona com apt, dnf, pacman, zypper e apk.
 
-### Padrão: `./install.sh` já é completo
+### Copie e cole: funciona até numa máquina zerada
 
-Numa máquina zerada, um único `./install.sh` entrega:
+Máquina nova e container costumam vir **sem `git` e sem `curl`** — então não dá para começar por `git clone`. Este bloco resolve isso primeiro, em qualquer distro, e instala o Zest em seguida. Cole tudo de uma vez:
+
+```bash
+command -v curl >/dev/null 2>&1 || command -v wget >/dev/null 2>&1 || {
+  apt-get update -qq && apt-get install -y -qq curl   # Debian/Ubuntu
+  dnf install -y -q curl                              # Fedora
+  pacman -Sy --noconfirm curl                         # Arch
+  zypper --non-interactive install curl               # openSUSE
+  apk add curl                                        # Alpine
+} 2>/dev/null
+{ curl -fsSL https://github.com/reginaldosevero/zest/archive/refs/heads/master.tar.gz \
+  || wget -qO- https://github.com/reginaldosevero/zest/archive/refs/heads/master.tar.gz; } | tar xz
+cd zest-master && ./install.sh
+```
+
+> Precisa rodar como quem pode instalar pacotes: `sudo -i` antes, num container já root não muda nada.
+> As linhas de distro que não existirem na sua máquina são ignoradas — só a sua roda.
+
+### Se você já tem git
+
+```bash
+git clone https://github.com/reginaldosevero/zest ~/projetos/zest
+cd ~/projetos/zest && ./install.sh
+```
+
+### Sem linha de comando nenhuma
+
+Baixe o ZIP pelo navegador em
+[github.com/reginaldosevero/zest](https://github.com/reginaldosevero/zest) → botão **Code** → **Download ZIP**,
+descompacte e rode `./install.sh` de dentro da pasta (ou `bash install.sh`, se o `+x` se perdeu no download).
+
+### O que um único `./install.sh` entrega
+
+Numa máquina zerada:
 
 - os módulos do Zest
 - as **17 ferramentas** (fzf, rg, fd, bat, eza, delta, zoxide, jq, yq, duf, lazygit, direnv, tldr, atuin, mise, uv, thefuck), baixadas em `~/.local/bin` — sem root
 - o **prompt** (pergunta qual estilo na primeira execução; default: `zest`, que é o visual `╭─usuário ~/dir ❯` com status do git)
 - os **plugins** se você quiser Oh My Zsh
-
-**Sem git?** O instalador baixa o repo sozinho (curl/wget) — é o caminho padrão em container e VM enxuto:
-
-```bash
-curl -fsSL https://github.com/reginaldosevero/zest/archive/refs/heads/master.tar.gz -o zest.tar.gz
-tar xzf zest.tar.gz && cd zest-master && ./install.sh
-```
-
-Ou, com git, clone e rode o instalador de dentro:
-
-```bash
-git clone https://github.com/reginaldosevero/zest ~/projetos/zest
-cd ~/projetos/zest
-./install.sh
-```
 
 Na primeira execução, o instalador pergunta qual prompt você quer (1-4, default 1). Só em terminal interativo: em instalações desatendidas ou em CI, o default é `zest`.
 

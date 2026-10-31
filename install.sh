@@ -84,6 +84,22 @@ pm_update() {
     esac
   fi
 }
+# pm_hint_install <pm> <pacote...> — imprime a linha pronta para a máquina dele.
+# Não-root precisa de sudo; root não (e em container o sudo pode nem existir).
+pm_hint_install() {
+  local pm="$1"; shift
+  local cmd
+  case "$pm" in
+    apt-get) cmd="$pm install -y $*" ;;
+    dnf)     cmd="$pm install -y $*" ;;
+    pacman)  cmd="$pm -Sy --noconfirm $*" ;;
+    zypper)  cmd="$pm --non-interactive install $*" ;;
+    apk)     cmd="$pm add $*" ;;
+    *)       cmd="$pm $*" ;;
+  esac
+  if [[ "$(id -u)" == "0" ]]; then printf '%s' "$cmd"
+  else printf 'sudo %s' "$cmd"; fi
+}
 # detecção de distro (lib/distro.sh) — usada no passo 1 e no install-tool
 if [[ -f "$REPO_DIR/lib/distro.sh" ]]; then
   # shellcheck disable=SC1090  # o caminho só é conhecido na execução
@@ -160,12 +176,16 @@ if [[ -z "${ZEST_PROMPT:-}" && ! -f "$DEST/prompt" && $HAS_PROMPT == 0 ]]; then
   unset _escolha
 fi
 
-# 1) dependências — o Zest instala SOZINHO o que falta (sudo, ou su no Debian cru)
+# 1) dependências — o Zest instala SOZINHO o que falta (root: direto; não-root: sudo/su)
 #
 # Cada dependência só entra na lista quando o fluxo realmente a usa. Cobrar
 # tudo sempre derrubava a instalação em container enxuto: sem git e com curl,
 # o `NEED+=(git)` parava o usuário com "não encontrei apt/… para instalá-lo"
 # quando o tarball do GitHub (curl) já teria bastado.
+#
+# Se a instalação automática falhar (sem rede, sem permissão, PM inexistente),
+# o instalador NÃO aborta: tenta seguir com o que tem e só fala o que fazer
+# no final. Um usuário leigo perde menos assim.
 NEED=()
 command -v zsh >/dev/null 2>&1 || NEED+=(zsh)
 # git: necessário para clonar Oh My Zsh e os plugins. Baixar o próprio Zest
@@ -181,30 +201,43 @@ if [[ $WITH_PLUGINS == 1 && ! -d "$HOME/.oh-my-zsh" ]]; then
   command -v python3 >/dev/null 2>&1 || NEED+=(python3)
 fi
 
+PM=""
 if (( ${#NEED[@]} )); then
   PM=$(pm_detect) || PM=""
   if [[ -z "$PM" ]]; then
-    echo "❌ Faltam: ${NEED[*]} — e não encontrei apt/dnf/pacman/zypper/apk para instalá-los."
-    echo "   Instale manualmente e rode este instalador de novo."
-    exit 1
-  fi
-
-  echo "📦 Faltam dependências: ${NEED[*]}"
-  echo "   Gerenciador detectado: $PM — pode pedir sua senha (sudo) ou a do root (su)…"
-  pm_update "$PM" || true
-  if pm_install "$PM" "${NEED[@]}"; then
-    echo "✓ dependências instaladas (via $PM)"
+    echo "⚠️  Faltam: ${NEED[*]} — e não encontrei apt-get/dnf/pacman/zypper/apk."
+    echo "   Vou tentar seguir com o que já existe."
   else
-    echo "❌ Não consegui instalar automaticamente. Faça manualmente e rode de novo:"
-    case "$PM" in
-      apt-get) echo "   sudo apt-get install ${NEED[*]}" ;;
-      dnf)     echo "   sudo dnf install ${NEED[*]}" ;;
-      pacman)  echo "   sudo pacman -Sy --noconfirm ${NEED[*]}" ;;
-      zypper)  echo "   sudo zypper install -y ${NEED[*]}" ;;
-      apk)     echo "   sudo apk add ${NEED[*]}" ;;
-    esac
-    exit 1
+    echo "📦 Faltam dependências: ${NEED[*]}"
+    echo "   Gerenciador detectado: $PM — pode pedir sua senha (sudo) ou a do root (su)…"
+    pm_update "$PM" || true
+    if pm_install "$PM" "${NEED[@]}"; then
+      echo "✓ dependências instaladas (via $PM)"
+    else
+      echo "⚠️  A instalação automática falhou — vou tentar seguir com o que já existe."
+      echo "   Se for o caso, instale na mão:  $(pm_hint_install "$PM" "${NEED[@]}")"
+    fi
   fi
+fi
+
+# zsh é a única dependência realmente inegociável: os módulos são código zsh.
+# Sem ele o Zest não carrega em lugar nenhum — então a mensagem tem de ser a
+# linha exata para a máquina dele (root não usa sudo), e nada de "rode de novo".
+if ! command -v zsh >/dev/null 2>&1; then
+  echo ""
+  echo "❌ O Zest precisa do zsh e ele não está instalado."
+  if [[ -n "$PM" ]]; then
+    echo "   Rode esta linha e depois rode o instalador outra vez:"
+    echo "     $(pm_hint_install "$PM" zsh)"
+  else
+    echo "   Instale o zsh pelo gerenciador da sua distro e rode de novo:"
+    echo "     apt-get install -y zsh    # Debian/Ubuntu"
+    echo "     dnf install -y zsh        # Fedora"
+    echo "     pacman -Sy --noconfirm zsh  # Arch"
+    echo "     zypper install -y zsh     # openSUSE"
+    echo "     apk add zsh               # Alpine"
+  fi
+  exit 1
 fi
 echo "✓ zsh encontrado: $(zsh --version)"
 
@@ -230,7 +263,8 @@ zest_src_resolve() {
     fi
     echo "· clone falhou — tentando o tarball…"
   fi
-  # sem git (ou clone falhou): baixa o tarball do branch padrão. curl OU wget.
+  # sem git (ou clone falhou): baixa o tarball do branch padrão.
+  # curl, wget, python3 (urllib) ou busybox wget — tenta em ordem.
   local url="$ZEST_ORIGIN/archive/refs/heads/master.tar.gz"
   if command -v curl >/dev/null 2>&1; then
     echo "· baixando o Zest em $dest (curl)…"
@@ -238,6 +272,15 @@ zest_src_resolve() {
   elif command -v wget >/dev/null 2>&1; then
     echo "· baixando o Zest em $dest (wget)…"
     wget -q --https-only -O "$dest/zest.tar.gz" "$url" || return 1
+  elif command -v python3 >/dev/null 2>&1; then
+    echo "· baixando o Zest em $dest (python3)…"
+    python3 -c "
+import urllib.request, sys
+urllib.request.urlretrieve('$url', '$dest/zest.tar.gz')
+" 2>/dev/null || return 1
+  elif command -v busybox >/dev/null 2>&1; then
+    echo "· baixando o Zest em $dest (busybox wget)…"
+    busybox wget -q -O "$dest/zest.tar.gz" "$url" 2>/dev/null || return 1
   else
     return 1
   fi
@@ -253,13 +296,17 @@ zest_src_resolve() {
 }
 if [[ "$NEED_SRC_RESOLVE" == 1 ]]; then
   if ! zest_src_resolve || [[ ! -f "$REPO_DIR/lib/tools.list" ]]; then
-    echo "❌ Não consegui baixar o Zest de $ZEST_ORIGIN."
-    echo "   Precisa de git, OU de curl/wget + gzip. Rode manualmente:"
-    echo "     git clone $ZEST_ORIGIN.git"
-    echo "     cd zest && ./install.sh"
-    echo "   Ou baixe o tarball:"
-    echo "     curl -fsSL $ZEST_ORIGIN/archive/refs/heads/master.tar.gz -o zest.tar.gz"
-    echo "     tar xzf zest.tar.gz && cd zest-master && ./install.sh"
+    echo ""
+    echo "❌ Não tenho como baixar o Zest de $ZEST_ORIGIN."
+    echo "   Precisa de um deles: git · curl · wget · python3 · busybox wget"
+    echo ""
+    echo "   Se tem um deles, instale o Zest assim:"
+    echo "     git clone $ZEST_ORIGIN.git && cd zest && ./install.sh"
+    echo "     # ou baixe o tarball do navegador (botão Code → Download ZIP)"
+    echo ""
+    echo "   Se não tem nenhum, baixe o ZIP pela web:"
+    echo "     https://github.com/reginaldosevero/zest/archive/refs/heads/master.zip"
+    echo "   (abre no navegador, descompacta e roda ./install.sh de dentro)"
     exit 1
   fi
   # agora que o repo chegou, o lib/distro.sh real passa a valer
@@ -299,9 +346,16 @@ cp -r "$REPO_DIR/modules" "$REPO_DIR/lib" "$DEST/" 2>/dev/null || true
 mkdir -p "$DEST/modules" "$DEST/lib"
 cp "$REPO_DIR"/modules/*.zsh "$DEST/modules/"
 [[ -d "$REPO_DIR/lib" ]] && cp -r "$REPO_DIR"/lib/* "$DEST/lib/" 2>/dev/null || true
-chmod +x "$REPO_DIR/bin/zest"
+# O +x vai no ARQUIVO COPIADO, não no do clone: o instalador não tem nada a
+# mudar no repositório de origem, e um clone somente-leitura (mount de Docker,
+# arquivo compactado, outro usuário) quebrava a instalação aqui com
+# "Read-only file system".
+# Escrever por tmp+mv também evita "Text file busy" ao rodar o instalador de
+# novo com o 'zest' em execução (cp não sobrescreve um executável vivo).
 mkdir -p "$HOME/.local/bin"
-cp "$REPO_DIR/bin/zest" "$HOME/.local/bin/zest"   # cópia (não symlink): sobrevive se a pasta do clone for apagada
+cp "$REPO_DIR/bin/zest" "$HOME/.local/bin/.zest.tmp.$$"   # cópia (não symlink): sobrevive se a pasta do clone for apagada
+chmod +x "$HOME/.local/bin/.zest.tmp.$$"
+mv -f "$HOME/.local/bin/.zest.tmp.$$" "$HOME/.local/bin/zest"
 echo "✓ comando 'zest' em $HOME/.local/bin"
 echo "✓ módulos em $DEST"
 
@@ -465,17 +519,19 @@ if (( ! SHELL_OK )); then
   fi
 fi
 
-# 9) PATH em shell não-zsh — se a conta ainda abre bash, o terminal novo não vê
-#    as ferramentas em ~/.local/bin nem o ~/.zprofile. O bloco no ~/.bashrc é a
-#    rede de segurança: os comandos funcionam mesmo enquanto a conta não vira
-#    zsh. O uninstall remove o bloco e devolve o arquivo como estava.
-#    (Aqui só PATH: os módulos do Zest são código zsh e não podem ser carregados
-#     dentro do bash.)
-BASHRC="$HOME/.bashrc"
-if (( ! SHELL_OK )); then
-  [[ -f "$BASHRC" ]] || : > "$BASHRC"
-  if ! grep -q ">>> zest >>>" "$BASHRC" 2>/dev/null; then
-    cat >> "$BASHRC" <<'ZESTEOF'
+# 9) PATH em ~/.local/bin — sem isso, um terminal novo não vê 'zest' nem as
+#    ferramentas. O Zest não pode confiar em 'o terminal abre zsh': o chsh
+#    pode falhar (sem sudo, sem PAM), o terminal pode abrir bash mesmo assim,
+#    e um terminal que já estava aberto antes da troca continua bash.
+#    Cobrimos os dois lados: .bashrc (bash) e .zprofile (zsh). O uninstall
+#    remove os dois e devolve cada um como estava.
+#
+#    Bug que motivou isso: em container root, o chsh dava certo e o shell
+#    virava zsh — mas o bloco do PATH só era escrito quando o shell AINDA
+#    não era zsh, então um terminal bash aberto antes da troca via 'zest:
+#    command not found' mesmo com o Zest instalar perfeitamente.
+zest_path_block() {
+  cat <<'ZESTEOF'
 
 # >>> zest >>>
 # Ferramentas do Zest (fzf, rg, fd, bat, eza, delta, zoxide, jq, yq, duf,
@@ -483,11 +539,21 @@ if (( ! SHELL_OK )); then
 export PATH="$HOME/.local/bin:$PATH"
 # <<< zest <<<
 ZESTEOF
-    echo "✓ PATH do Zest adicionado ao ~/.bashrc"
+}
+zest_append() { # arquivo
+  local f="$1"
+  [[ -f "$f" ]] || : > "$f"
+  if ! grep -q ">>> zest >>>" "$f" 2>/dev/null; then
+    zest_path_block >> "$f"
+    echo "✓ PATH do Zest adicionado a $f"
   else
-    echo "· bloco do Zest já estava no ~/.bashrc"
+    echo "· bloco do Zest já estava em $f"
   fi
-fi
+}
+zest_append "$HOME/.bashrc"
+# .zprofile: o zsh lê .zprofile em login shells, e em container a imagem
+# do Debian não tem .zprofile por padrão — então o PATH sumia do zsh.
+zest_append "$HOME/.zprofile"
 
 echo ""
 echo "✅ Pronto! Ative com:  exec zsh   (ou feche e abra o terminal)"

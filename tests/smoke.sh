@@ -246,5 +246,28 @@ else
   echo "  ✗ install.sh abre /dev/tty sem calar o erro:$(echo "${TTYLEAK:-}" | tr '\n' ' ')"; FAIL=1
 fi
 
+# 17) o PATH do Zest vai para .bashrc E .zprofile SEM depender do shell atual
+#     (bug real: o bloco só era escrito quando o login shell NÃO era zsh — e
+#      como o chsh rodava antes, num container root o bloco era pulado e o
+#      usuário via 'zest: command not found' em qualquer terminal bash. O
+#      teste roda o instalador de verdade num HOME falso e confere os dois.)
+P_HOME="$(mktemp -d)"
+P_SHIM="$(mktemp -d)"
+# chsh/sudo falham de propósito: o teste não pode mexer no shell real de quem
+# roda o smoke, e o ponto aqui é justamente o PATH funcionar MESMO quando o
+# chsh não dá certo.
+printf '#!/bin/sh\nexit 1\n' > "$P_SHIM/chsh"
+printf '#!/bin/sh\nexit 1\n' > "$P_SHIM/sudo"
+chmod +x "$P_SHIM/chsh" "$P_SHIM/sudo"
+if env -i HOME="$P_HOME" PATH="$P_SHIM:$PATH" TERM=dumb bash install.sh --no-tools </dev/null >/dev/null 2>&1 \
+   && grep -q ">>> zest >>>" "$P_HOME/.bashrc" \
+   && grep -q ">>> zest >>>" "$P_HOME/.zprofile" \
+   && [[ -x "$P_HOME/.local/bin/zest" ]]; then
+  echo "  ✓ PATH do Zest chega ao bash E ao zsh (não depende do chsh dar certo)"
+else
+  echo "  ✗ install.sh não garante o PATH em ~/.bashrc e ~/.zprofile"; FAIL=1
+fi
+rm -rf "$P_HOME" "$P_SHIM"
+
 echo "════════════════════"
 (( FAIL == 0 )) && echo "✅ smoke test passou" || { echo "❌ smoke test falhou"; exit 1; }
