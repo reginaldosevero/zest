@@ -349,5 +349,16 @@ else
   echo "  ✗ varredura de utilitários de sistema está errada"; FAIL=1
 fi
 
+# 22) nenhum filtro de jq com colchete fora de aspas nos módulos: no zsh o
+#     '.result[0]' solto é GLOB e a função morre com "no matches found" antes de
+#     chamar o jq — foi exatamente o que derrubou o 'stocks'.
+if grep -rnE '\bjq[[:space:]]+(-[a-zA-Z]+[[:space:]]+)*[^"'"'"']*[][]' modules/ bin/zest >/dev/null; then
+  echo "  ✗ jq com colchete fora de aspas (o zsh trata como glob):"
+  grep -rnE '\bjq[[:space:]]+(-[a-zA-Z]+[[:space:]]+)*[^"'"'"']*[][]' modules/ bin/zest | sed 's/^/      /'
+  FAIL=1
+else
+  echo "  ✓ filtros de jq entre aspas (glob do zsh não engole o '[0]')"
+fi
+
 echo "════════════════════"
 (( FAIL == 0 )) && echo "✅ smoke test passou" || { echo "❌ smoke test falhou"; exit 1; }

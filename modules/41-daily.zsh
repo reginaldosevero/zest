@@ -131,9 +131,55 @@ news()  (
   wait
   for f in $tmpd/*(N); do cat "$f"; done
 )
-crypto() { curl -s "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd,brl" | jq .; }
-stocks() { curl -s "https://query1.finance.yahoo.com/v8/finance/chart/$1" | jq .chart.result[0].meta.regularMarketPrice; }
-calc()  { python3 -c "print($*)"; }
+# crypto — a ajuda promete "Bitcoin/Ethereum em USD e BRL", então o formato tem
+# de ser lido por gente, não JSON cru. O símbolo é escolhido por case no próprio
+# jq (nunca por sed, que trocaria " bitcoin" por " ₿ therium"), e preço ausente
+# vira '—' em vez de 'null' na tela.
+crypto() {
+  local json
+  json=$(curl -s --max-time 10 \
+         "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd,brl")
+  [[ -n "$json" && "$json" == \{* ]] || { echo "coingecko não respondeu (sem rede ou muitas requisições)"; return 1; }
+  jq -r '
+    def fmt: if . == null then "—" else tostring end;
+    to_entries[]
+    | (.key | if test("^btc|bitcoin"; "i") then "₿ bitcoin" else "Ξ ethereum" end) as $icone
+    | "  \($icone):  USD \(.value.usd | fmt)   BRL \(.value.brl | fmt)"
+  ' <<<"$json"
+}
+# stocks — duas armadilhas: (1) o '.chart.result[0]' vai ENTRE ASPAS, senão o
+# zsh vê o '[0]' como glob e morre com "no matches found" antes do jq; (2) o
+# Yahoo responde "Edge: Too Many Requests" para quem não se identifica, e aí o
+# jq reclama de JSON inválido parecendo ticker errado.
+stocks() {
+  (( $# )) || { echo 'uso: stocks PETR4.SA   (ticker na B3 leva .SA)'; return 1; }
+  local json saida
+  json=$(curl -s -H 'User-Agent: Mozilla/5.0' \
+         "https://query1.finance.yahoo.com/v8/finance/chart/$1")
+  if [[ -z "$json" || "$json" != \{* ]]; then
+    echo "o Yahoo não respondeu (muitas requisições ou sem rede) — tente de novo"
+    return 1
+  fi
+  saida=$(jq -r '.chart.result[0].meta
+                 | select(.regularMarketPrice != null)
+                 | "\(.shortName // .longName // .symbol): \(.regularMarketPrice) \(.currency // "")"' \
+           <<<"$json" 2>/dev/null)
+  [[ -n "$saida" ]] && print -r -- "$saida" || echo "não achei o ticker $1"
+}
+# calc — as aspas NÃO são frescura: no zsh o '*' é glob, então 'calc 2+3*4'
+# morre ANTES de chegar aqui ("no matches found"). O eval roda sem __builtins__,
+# então 'calc "2+3"` calcula e 'calc "__import__(chr(115))"' não executa nada.
+calc() {
+  (( $# )) || { echo 'uso: calc "2+3*4"   (as aspas protegem o * do zsh)'; return 1; }
+  python3 -c '
+import sys
+try:
+    print(eval(sys.argv[1], {"__builtins__": {}}, {}))
+except Exception:
+    sys.stderr.write("não entendi a conta: %s   (ex.: calc \"2+3*4\")\n" % sys.argv[1])
+    sys.exit(1)
+' "$*"
+}
 timer() { echo "⏱️  Timer: ${1:-10}s (Ctrl+C para parar)"; sleep "${1:-10}"; echo "⏰ Tempo esgotado!"; }
 stopwatch() { echo "Cronômetro iniciado. Enter para parar."; time read; }
 

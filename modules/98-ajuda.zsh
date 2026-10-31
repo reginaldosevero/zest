@@ -24,7 +24,7 @@ PRODUTIVIDADE
   todo                 salva tarefa (mesma mecânica da nota)
   todos                lista as tarefas
   tododone texto       marca uma tarefa como feita
-  calc 2+3*4           calculadora rápida
+  calc "2+3*4"         calculadora rápida (as aspas protegem o * do zsh)
   timer 25             cronômetro de 25 segundos
   weather [cidade]     clima atual
   lua                  fase da lua: 🌕 Lua cheia / Illuminação: 100% / Próxima: …
