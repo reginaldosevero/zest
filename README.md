@@ -182,7 +182,10 @@ Depois:
 ```bash
 source ~/.zshrc
 zest doctor                 # diagnostica o ambiente
+zest self-update            # atualiza o Zest para a última release (sem root)
 ```
+
+> **`zest self-update`** — quando sair uma nova versão, é só rodar esse comando. Ele compara a versão local com a última tag do GitHub, baixa o tarball e atualiza módulos, lib e bin em `~/.config/zest` e `~/.local/bin` — sem root, sem tocar no `.zshrc`. Se já estiver na última, diz só "já está na versão mais recente" e não faz nada.
 
 O `zest add` baixa **binários de release** para `~/.local/bin` — por isso não pede root. Se você preferir o pacote oficial da sua distro (atualiza junto com o sistema), peça o caminho nativo:
 
@@ -198,7 +201,7 @@ O pacote só é usado quando ele realmente instala o binário com o nome que o Z
 
 **Diagnóstico:** `sysinfo` · `topmem` · `topcpu` · `df` · `portcheck host porta` · `ipinfo`
 
-**CLI do Zest:** `zest doctor` · `zest update` · `zest add <ferramenta>` · `zest prompt [zest|compact|plain|off]` — mostra ou troca o estilo do prompt sem abrir arquivo algum.
+**CLI do Zest:** `zest doctor` · `zest update` · `zest self-update` · `zest add <ferramenta>` · `zest prompt [zest|compact|plain|off]` — mostra ou troca o estilo do prompt sem abrir arquivo algum.
 
 **Produtividade:** `note` / `notes` / `noterm N` / `noteclean` · `todo` / `todos` / `tododone` · `calc 2+2` · `timer 25` · `worldtime` · `weather` · `news` (em português!)
 
