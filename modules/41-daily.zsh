@@ -64,15 +64,12 @@ weather() {
   cty=$(printf '%s' "${1:-}" | jq -Rr @uri 2>/dev/null) || cty="${1:-}"
   curl -s --max-time 8 "https://wttr.in/${cty}?format=3" 2>/dev/null || echo "sem conexão"
 }
-# lua — fase da lua em três modos:
-#   lua           arte ANSI (cores no terminal, texto puro em pipe)
-#   lua texto     só a linha textual: "Last Quarter - 1d 2h 36m"
-#   lua emoji     🌕🌖🌗🌘🌑 de acordo com a fase
+# lua — mostra a fase da lua em pt-BR:
+#   🌕 Lua cheia
+#   Illuminação: 100%
+#   Próxima: Last Quarter em 5d 13:53
 # O textual é extraído da própria arte do wttr.in (ela já vem com a fase e
-# o tempo até a próxima). Se a extração falhar, cai no textual cru.
-# compatibilidade: `moon` funciona como aliases de `lua`
-moon() { lua "$@"; }
-
+# o tempo até a próxima). Nenhuma API adicional, nenhuma imagem.
 lua() {
   local raw clean fase1 proxima1 tempo1 emoji nome ilum prox_texto
   raw=$(curl -s --max-time 8 "https://wttr.in/Moon?format=3" 2>/dev/null)
@@ -110,29 +107,9 @@ lua() {
     prox_texto="Próxima: ${proxima1% *} em ${dias}d ${hhmmss%:*}"
   }
 
-  case "${1:-}" in
-    texto)
-      [[ -n "$fase1" ]] && echo "$fase1" \
-        || printf '%s\n' "$clean" | grep -iE 'moon|quarter' | head -1
-      ;;
-    emoji)
-      echo "$emoji"
-      ;;
-    arte)
-      # mantém cores se for terminal, strip se for pipe/script
-      if [[ -t 1 ]]; then
-        printf '%s\n' "$raw"
-      else
-        printf '%s\n' "$raw" | sed 's/\x1b\[[0-9;]*m//g'
-      fi
-      ;;
-    *)
-      # padrão: só texto
-      echo "$emoji $nome"
-      echo "Illuminação: $ilum"
-      [[ -n "$prox_texto" ]] && echo "$prox_texto"
-      ;;
-  esac
+  echo "$emoji $nome"
+  echo "Illuminação: $ilum"
+  [[ -n "$prox_texto" ]] && echo "$prox_texto"
 }
 # HN com títulos traduzidos para pt-BR (API MyMemory; fallback: título original)
 # Corpo em subshell ( ) para os jobs em background NÃO poluírem o terminal
