@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.2.0 — 2026-10-30
+
+### Novo
+- **Detecção de distro de verdade** (`lib/distro.sh` + `modules/06-pm.zsh`): `sysclean`, `updateall` e as dicas de instalação descobrem se a máquina é apt, dnf, pacman, zypper ou apk. Acabou o `sudo apt` fixo dentro dos módulos.
+- **`zest add --prefer-pm`**: instala pelo gerenciador da distro em vez do binário de release (atualiza junto com o sistema). Continua opt-in — o padrão segue sem pedir root.
+- **`zest doctor` mostra o gerenciador detectado**, junto das ferramentas.
+
+### Corrigido
+- **`sysclean` quebrava fora do Debian/Ubuntu**: era `sudo apt autoremove && sudo apt autoclean` puro. Agora usa `autoremove` + limpeza de cache do gerenciador detectado, e pula `journalctl` onde não há systemd (Alpine/OpenRC).
+- **`updateall` passo 1 era `sudo apt update` puro** — em Fedora/Arch/Alpine falhava. Passa a usar update + upgrade + autoremove do gerenciador da máquina.
+- **`spell` dava dica de `sudo apt install` em qualquer distro** — a mensagem agora sai no formato do gerenciador certo (`dnf`, `pacman -S`, `zypper`, `apk add`).
+- **`zest add` não instala pacote com nome de binário trocado**: no apt, `bat` instala `batcat` e `fd-find` instala `fdfind`. Instalar o pacote "quase certo" deixava um binário com nome errado e os aliases do Zest apontando para nada. Esses casos vão direto para o binário de release.
+- **`yq` nunca vem do apt**: o `yq` do Debian é o wrapper Python do jq, não o yq Go usado por `json2yaml`/`yaml2json`.
+
+### Detalhes
+- Antes de pedir `sudo`, o instalador consulta o repositório (`apt-cache policy`, `dnf list`, `pacman -Si`, `zypper info`, `apk info`) para ver se o pacote existe — sem senha gasta em pacote inexistente.
+- Nomes de pacote tratados por distro: `fd-find` (dnf), `git-delta` (apt/pacman), `tealdeer` (o pacote do `tldr`).
+- `journalctl`, `snap` e `npm -g` passam por `_zest-sudo`, que cai em `su -c` quando não há sudo.
+- **`sysclean` não morre mais em `~/.cache/thumbnails` vazio**: o glob estourava em `NOMATCH` no zsh quando a pasta não tinha arquivos.
+- Smoke test ganhou três guardas: nenhum módulo chama gerenciador direto, nenhuma função interna é definida duas vezes, e o mapa de pacotes não devolve nome cujo binário seria outro.
+- Roadmap: v0.2 concluída.
+
 ## 0.1.9 — 2026-10-27
 
 ### Segurança

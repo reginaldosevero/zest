@@ -1,6 +1,6 @@
 # 🌶️ Zest — o tempero do seu terminal
 
-![release](https://img.shields.io/badge/release-v0.1.9-8A2BE2) ![CI](https://github.com/reginaldosevero/zest/actions/workflows/ci.yml/badge.svg) ![licença](https://img.shields.io/github/license/reginaldosevero/zest) ![plataforma](https://img.shields.io/badge/plataforma-qualquer_Linux-success) ![shell](https://img.shields.io/badge/shell-zsh-red) ![root](https://img.shields.io/badge/root-n%C3%A3o_necess%C3%A1rio-brightgreen) ![idioma](https://img.shields.io/badge/docs-Portugu%C3%AAs-blue)
+![release](https://img.shields.io/badge/release-v0.2.0-8A2BE2) ![CI](https://github.com/reginaldosevero/zest/actions/workflows/ci.yml/badge.svg) ![licença](https://img.shields.io/github/license/reginaldosevero/zest) ![plataforma](https://img.shields.io/badge/plataforma-qualquer_Linux-success) ![shell](https://img.shields.io/badge/shell-zsh-red) ![root](https://img.shields.io/badge/root-n%C3%A3o_necess%C3%A1rio-brightgreen) ![idioma](https://img.shields.io/badge/docs-Portugu%C3%AAs-blue)
 
 **Zsh** produtivo, legível para humanos e instalável em **qualquer distro Linux** — sem precisar de root.
 
@@ -66,6 +66,14 @@ zest doctor                 # diagnostica o ambiente
 zest add fzf bat eza ripgrep fd delta lazygit duf jq yq direnv tldr zoxide atuin mise
 ```
 
+O `zest add` baixa **binários de release** para `~/.local/bin` — por isso não pede root. Se você preferir o pacote oficial da sua distro (atualiza junto com o sistema), peça o caminho nativo:
+
+```bash
+zest add --prefer-pm jq tealdeer    # instala pelo apt/dnf/pacman/zypper/apk (pede sudo)
+```
+
+O pacote só é usado quando ele realmente instala o binário com o nome que o Zest espera. No Debian/Ubuntu, por exemplo, `bat` instala `batcat` e `fd-find` instala `fdfind` — nesses casos o Zest vai direto para o binário de release, em vez de deixar um comando com nome errado parado no sistema.
+
 ## 🧰 Comandos que o Zest traz
 
 > **Não sabe por onde começar?** Digite `ajuda` em qualquer terminal. Sai uma colinha com tudo que o Zest oferece, organizada por categoria. Aceita filtro: `ajuda git`, `ajuda histórico`, `ajuda nota`.
@@ -78,7 +86,7 @@ zest add fzf bat eza ripgrep fd delta lazygit duf jq yq direnv tldr zoxide atuin
 
 **Arquivos:** `z` (cd inteligente) · `ll` · `lt` · `bat` · `fd` · `rg` · `extract arquivo.zip` · `syncdir origem destino` · `backup_dir pasta`
 
-**Manutenção:** `updateall` (12 gerenciadores: apt, omz, mise, uv, pipx, pip, flatpak, snap, npm, rustup, opencode, tldr) · `sysclean` · `fuck` (corrige typos)
+**Manutenção:** `updateall` (12 gerenciadores: o da sua distro, omz, mise, uv, pipx, pip, flatpak, snap, npm, rustup, opencode, tldr) · `sysclean` · `fuck` (corrige typos)
 
 **Projetos em segundos:** `pyproject minha-api` · `nodeproject meu-site` · `goproject` · `rustproject`
 
@@ -132,11 +140,12 @@ zest/
 ├── install.sh · uninstall.sh    # entram e saem limpos
 ├── bin/zest                     # CLI: doctor · update · add
 ├── modules/*.zsh                # um módulo por tema, todos com guardas
-│   ├── 00-path · 05-safety · 20-tools · 21-keys
-│   ├── 30-aliases · 41-daily · 43-git · 45-devops
+│   ├── 00-path · 05-safety · 06-pm · 10-plugins · 20-tools
+│   ├── 21-keys · 30-aliases · 41-daily · 43-git · 45-devops
 │   ├── 46-system · 47-projects · 48-text · 49-utils · 50-history
 │   └── 98-ajuda · 99-welcome
-├── lib/install-tool.sh          # baixa binários certos por distro/arquitetura
+├── lib/distro.sh                # detecta apt/dnf/pacman/zypper/apk (zero hardcode)
+├── lib/install-tool.sh          # binário por distro/arquitetura, com checksum
 └── tests/smoke.sh               # CI-ready
 ```
 
@@ -185,8 +194,8 @@ rm -f ~/.local/bin/{fzf,zoxide,atuin,mise,jq,yq,direnv,eza,rg,fd,bat,delta,lazyg
 
 - [x] **v0.1** — módulos funcionais + install/uninstall + doctor + smoke test
 - [x] **CI em Debian/Fedora/Arch/Alpine** — instalar → reinstalar → doctor → desinstalar (v0.1.7)
-- [ ] **v0.2** — detecção de distro no install-tool (apt/dnf/pacman antes de binário)
-- [ ] **v1.0** — i18n (pt_BR/en) · `curl | bash`
+- [x] **v0.2** — detecção de distro: `sysclean` e `updateall` seguem o gerenciador da máquina, e `zest add --prefer-pm` instala pelo pacote nativo
+- [ ] **v1.0** — i18n (pt_BR/en)
 
 ## 📄 Licença
 
@@ -212,9 +221,9 @@ bc1qyxsu8mhgujqau8e87lthgxg08eq0qw0426du5z
 
 | Sintoma | Causa | Solução |
 |---|---|---|
-| `command not found: git` ao clonar | git não instalado | `su -c 'apt install -y git'` |
-| O instalador diz `❌ Pré-requisitos faltando: zsh…` | zsh não instalado | `sudo apt install -y zsh` ou `su -c 'apt install -y zsh'` |
-| `zest add` falha em tudo | falta `curl`/`wget` | `sudo apt install -y curl` |
+| `command not found: git` ao clonar | git não instalado | instale pelo gerenciador da distro (`apt install`, `dnf install`, `pacman -S`, `zypper install`, `apk add`) |
+| O instalador diz `❌ Pré-requisitos faltando: zsh…` | zsh não instalado | o próprio instalador resolve — ele detecta o gerenciador e pede a senha |
+| `zest add` falha em tudo | falta `curl`/`wget` | instale o `curl` pelo gerenciador da distro |
 | `./install.sh: Permission denied` | baixou o ZIP (perde o +x) | `bash install.sh --with-omz` |
 | `✗ sintaxe` no `tests/smoke.sh` | **não rode o smoke como usuário** — é teste de desenvolvimento e exige zsh instalado | apenas rode `./install.sh` |
 

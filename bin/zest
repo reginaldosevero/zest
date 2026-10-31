@@ -4,7 +4,7 @@
 set -u
 ZEST_HOME="${ZEST_HOME:-$HOME/.config/zest}"
 ZEST_REPO="${ZEST_REPO:-$(cd "$(dirname "$0")/.." 2>/dev/null && pwd)}"
-VERSION="0.1.9"
+VERSION="0.2.0"
 
 usage() {
   cat <<'EOF'
@@ -48,6 +48,18 @@ cmd_doctor() {
       echo "→ não instalado (zest add $t)"; warn=$((warn+1))
     fi
   done
+
+  printf '%-28s' "· gerenciador de pacotes"
+  local PM_DOC="" p
+  for p in apt-get dnf pacman zypper apk; do
+    command -v "$p" >/dev/null 2>&1 && { PM_DOC="$p"; break; }
+  done
+  if [[ -n "$PM_DOC" ]]; then
+    echo "✓ $PM_DOC"
+  else
+    echo "→ nenhum (apt/dnf/pacman/zypper/apk) — só binários de release"
+    warn=$((warn+1))
+  fi
 
   printf '%-28s' "· sintaxe dos módulos"
   local bad=0 f
