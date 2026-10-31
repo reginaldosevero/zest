@@ -74,28 +74,31 @@ weather() {
 moon() { lua "$@"; }
 
 lua() {
-  local raw clean textual fase
+  local raw clean fase1 sinal1 tempo1 proxima1 sinal2 tempo2
   raw=$(curl -s --max-time 8 "https://wttr.in/Moon?format=3" 2>/dev/null)
   [[ -n "$raw" ]] || { echo "sem conexão"; return 1; }
+  clean=$(printf '%s\n' "$raw" | sed 's/\x1b\[[0-9;]*m//g')
+  # a arte do wttr.in traz 4 linhas de contexto textual:
+  #   "Full Moon +"        (fase atual + sinal)
+  #   "5 13:53:07"         (tempo até próxima: dias HH:MM:SS)
+  #   "Last Quarter -"     (próxima fase)
+  #   "1 2:23:47"          (tempo até a fase depois)
+  fase1=$(printf '%s\n' "$clean" \
+    | grep -oE '(Full Moon|Last Quarter|First Quarter|New Moon|Waxing (Crescent|Gibbous)|Waning (Crescent|Gibbous)) [+-]' \
+    | head -1)
+  proxima1=$(printf '%s\n' "$clean" \
+    | grep -oE '(Full Moon|Last Quarter|First Quarter|New Moon|Waxing (Crescent|Gibbous)|Waning (Crescent|Gibbous)) [+-]' \
+    | sed -n 2p)
+  tempo1=$(printf '%s\n' "$clean" \
+    | grep -oE '[0-9]+ [0-9]{2}:[0-9]{2}:[0-9]{2}' | head -1)
+
   case "${1:-arte}" in
     texto)
-      clean=$(printf '%s\n' "$raw" | sed 's/\x1b\[[0-9;]*m//g')
-      # a fase e o tempo vêm em linhas separadas pela arte (Full Moon + / 5 13:47:33)
-      textual=$(printf '%s\n' "$clean" \
-        | grep -oE '(Full Moon|Last Quarter|First Quarter|New Moon|Waxing (Crescent|Gibbous)|Waning (Crescent|Gibbous)) [+-]' \
-        | head -1)
-      temporal=$(printf '%s\n' "$clean" \
-        | grep -oE '[0-9]+ [0-9]{2}:[0-9]{2}:[0-9]{2}' | head -1)
-      [[ -n "$textual" && -n "$temporal" ]] && echo "$textual $temporal" \
+      [[ -n "$fase1" ]] && echo "$fase1" \
         || printf '%s\n' "$clean" | grep -iE 'moon|quarter' | head -1
       ;;
     emoji)
-      clean=$(printf '%s\n' "$raw" | sed 's/\x1b\[[0-9;]*m//g')
-      fase=$(printf '%s\n' "$clean" \
-        | grep -oE '(Full Moon|Last Quarter|First Quarter|New Moon|Waxing (Crescent|Gibbous)|Waning (Crescent|Gibbous))' \
-        | head -1)
-      # zsh: case patterns com espaço precisam de aspas duplas
-      case "$fase" in
+      case "$fase1" in
         *"Full Moon"*)          echo "🌕" ;;
         *"Last Quarter"*)       echo "🌗" ;;
         *"First Quarter"*)      echo "🌒" ;;
@@ -106,7 +109,23 @@ lua() {
       esac
       ;;
     *)
-      # arte: mantém cores se for terminal, strip se for pipe/script
+      # arte + contexto: emoji e nome da fase em cima, arte embaixo
+      # mantém cores se for terminal, strip se for pipe/script
+      local emoji="🌙"
+      case "$fase1" in
+        *"Full Moon"*)          emoji="🌕" ;;
+        *"Last Quarter"*)       emoji="🌗" ;;
+        *"First Quarter"*)      emoji="🌒" ;;
+        *"New Moon"*)           emoji="🌑" ;;
+        *"Waxing Gibbous"*)     emoji="🌖" ;;
+        *"Waning Crescent"*)    emoji="🌘" ;;
+      esac
+      echo "$emoji ${fase1% *}"
+      [[ -n "$proxima1" && -n "$tempo1" ]] && {
+        local dias="${tempo1%% *}" hhmmss="${tempo1#* }"
+        echo "Próxima: ${proxima1% *} em ${dias}d ${hhmmss%:*}"
+      }
+      echo ""
       if [[ -t 1 ]]; then
         printf '%s\n' "$raw"
       else
