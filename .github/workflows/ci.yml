@@ -63,11 +63,11 @@ jobs:
             command -v bash >/dev/null 2>&1 || apk add --no-cache bash >/dev/null
             export HOME=/tmp/zest-home
             mkdir -p "$HOME"
-            echo "::group::1ª instalação"
-            bash install.sh
+            echo "::group::1ª instalação (--no-tools: o ciclo não baixa 60 MB)"
+            bash install.sh --no-tools
             echo "::endgroup::"
             echo "::group::2ª execução (idempotência)"
-            bash install.sh
+            bash install.sh --no-tools
             test "$(grep -c ">>> zest >>>" "$HOME/.zshrc")" -eq 1
             test -f "$HOME/.local/bin/zest"
             test -d "$HOME/.config/zest/modules"
