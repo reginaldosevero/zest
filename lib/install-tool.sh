@@ -31,6 +31,24 @@ case "$ARCH" in
 esac
 
 # ------------------------------------------------------------
+#  LIBC — Alpine (musl) não executa binário builtado para glibc
+#  Cada receita com build duplo tenta na ordem de LIBC_ORDER e para na
+#  primeira que baixar (nem toda distro publica os dois: delta não tem
+#  musl para arm64, então a lista sempre termina em gnu).
+# ------------------------------------------------------------
+ZEST_LIBC=gnu
+if ldd --version 2>&1 | grep -qi musl; then
+  ZEST_LIBC=musl
+else
+  for _m in /lib/ld-musl-*.so.1; do [[ -e "$_m" ]] && ZEST_LIBC=musl && break; done
+fi
+unset _m
+case "$ZEST_LIBC" in
+  musl) LIBC_ORDER="musl gnu" ;;
+  *)    LIBC_ORDER="gnu musl" ;;
+esac
+
+# ------------------------------------------------------------
 #  REDE — sempre HTTPS e sempre falhando em erro
 # ------------------------------------------------------------
 get() { # url arquivo-de-saída
@@ -39,7 +57,7 @@ get() { # url arquivo-de-saída
   elif command -v wget >/dev/null 2>&1; then
     wget -q --https-only -T 300 -O "$2" "$1"
   else
-    echo "❌ Instale curl ou wget: sudo apt install -y curl"; return 1
+    echo "❌ Instale curl ou wget: $(zest_pm_hint "$(zest_pm_detect)" curl)"; return 1
   fi
 }
 
@@ -47,6 +65,25 @@ release_json() { # repo -> json do último release (cacheado na sessão)
   local f="$T/api/${1//\//_}.json"
   [[ -s "$f" ]] || get "https://api.github.com/repos/$1/releases/latest" "$f" || return 1
   cat "$f"
+}
+
+# pick_asset <repo> <prefix> — primeiro asset compatível com a libc atual.
+# musl antes de gnu (Alpine), gnu antes de musl (qualquer outra).
+# Delta não tem musl para arm64, então a lista termina em gnu — sem isso o
+# instalador falhava silenciosamente na primeira tentativa e caía no erro.
+pick_asset() {
+  local repo="$1" prefix="$2" libc name
+  for libc in $LIBC_ORDER; do
+    case "$libc" in
+      musl) name="${prefix}-unknown-linux-musl.tar.gz" ;;
+      gnu)  name="${prefix}-unknown-linux-gnu.tar.gz" ;;
+    esac
+    if release_json "$repo" | grep -q "\"name\": *\"$name\""; then
+      echo "$name"
+      return 0
+    fi
+  done
+  return 1
 }
 
 tag() {
@@ -144,31 +181,35 @@ do_install() {
       mv "$T/ripgrep-${V#v}-$A64-unknown-linux-musl/rg" "$BIN/rg" ;;
 
     fd)
-      V=$(tag sharkdp/fd); N="fd-${V}-$A64-unknown-linux-gnu.tar.gz"
+      V=$(tag sharkdp/fd)
+      N=$(pick_asset sharkdp/fd "fd-${V}-$A64") || { echo "❌ nenhuma build de fd para $ARCH/$ZEST_LIBC"; return 1; }
       dl "https://github.com/sharkdp/fd/releases/download/$V/$N" fd.tgz && \
       verify sharkdp/fd "$N" "$T/fd.tgz" && \
-      tar xzf "$T/fd.tgz" -C "$T" && check_elf "$T/fd-${V}-$A64-unknown-linux-gnu/fd" && \
-      mv "$T/fd-${V}-$A64-unknown-linux-gnu/fd" "$BIN/fd" ;;
+      tar xzf "$T/fd.tgz" -C "$T" && check_elf "$T/fd-${V}-$A64-unknown-linux-$ZEST_LIBC/fd" && \
+      mv "$T/fd-${V}-$A64-unknown-linux-$ZEST_LIBC/fd" "$BIN/fd" ;;
 
     bat)
-      V=$(tag sharkdp/bat); N="bat-${V}-$A64-unknown-linux-gnu.tar.gz"
+      V=$(tag sharkdp/bat)
+      N=$(pick_asset sharkdp/bat "bat-${V}-$A64") || { echo "❌ nenhuma build de bat para $ARCH/$ZEST_LIBC"; return 1; }
       dl "https://github.com/sharkdp/bat/releases/download/$V/$N" bat.tgz && \
       verify sharkdp/bat "$N" "$T/bat.tgz" && \
-      tar xzf "$T/bat.tgz" -C "$T" && check_elf "$T/bat-${V}-$A64-unknown-linux-gnu/bat" && \
-      mv "$T/bat-${V}-$A64-unknown-linux-gnu/bat" "$BIN/bat" ;;
+      tar xzf "$T/bat.tgz" -C "$T" && check_elf "$T/bat-${V}-$A64-unknown-linux-$ZEST_LIBC/bat" && \
+      mv "$T/bat-${V}-$A64-unknown-linux-$ZEST_LIBC/bat" "$BIN/bat" ;;
 
     eza)
-      V=$(tag eza-community/eza); N="eza_$A64-unknown-linux-gnu.tar.gz"
+      V=$(tag eza-community/eza)
+      N=$(pick_asset eza-community/eza "eza_$A64") || { echo "❌ nenhuma build de eza para $ARCH/$ZEST_LIBC"; return 1; }
       dl "https://github.com/eza-community/eza/releases/download/$V/$N" eza.tgz && \
       verify eza-community/eza "$N" "$T/eza.tgz" && \
       tar xzf "$T/eza.tgz" -C "$T" && check_elf "$T/eza" && mv "$T/eza" "$BIN/eza" ;;
 
     delta)
-      V=$(tag dandavison/delta); N="delta-${V#v}-$A64-unknown-linux-gnu.tar.gz"
+      V=$(tag dandavison/delta)
+      N=$(pick_asset dandavison/delta "delta-${V#v}-$A64") || { echo "❌ nenhuma build de delta para $ARCH/$ZEST_LIBC"; return 1; }
       dl "https://github.com/dandavison/delta/releases/download/$V/$N" delta.tgz && \
       verify dandavison/delta "$N" "$T/delta.tgz" && \
-      tar xzf "$T/delta.tgz" -C "$T" && check_elf "$T/delta-${V#v}-$A64-unknown-linux-gnu/delta" && \
-      mv "$T/delta-${V#v}-$A64-unknown-linux-gnu/delta" "$BIN/delta" ;;
+      tar xzf "$T/delta.tgz" -C "$T" && check_elf "$T/delta-${V#v}-$A64-unknown-linux-$ZEST_LIBC/delta" && \
+      mv "$T/delta-${V#v}-$A64-unknown-linux-$ZEST_LIBC/delta" "$BIN/delta" ;;
 
     lazygit)
       V=$(tag jesseduffield/lazygit); N="lazygit_${V#v}_Linux_$A64.tar.gz"
@@ -219,19 +260,41 @@ do_install() {
       tar xzf "$T/atuin.tgz" -C "$T" atuin && check_elf "$T/atuin" && mv "$T/atuin" "$BIN/atuin" ;;
 
     mise)
-      V=$(tag jdx/mise); N="mise-$V-linux-$MX64"
+      V=$(tag jdx/mise)
+      N="mise-$V-linux-$MX64"
       dl "https://github.com/jdx/mise/releases/download/$V/$N" mise && \
       verify jdx/mise "$N" "$T/mise" && check_elf "$T/mise" && \
       chmod +x "$T/mise" && mv "$T/mise" "$BIN/mise" ;;
 
+    uv)
+      V=$(tag astral-sh/uv)
+      N="uv-$A64-unknown-linux-$ZEST_LIBC.tar.gz"
+      dl "https://github.com/astral-sh/uv/releases/download/$V/$N" uv.tgz && \
+      verify astral-sh/uv "$N" "$T/uv.tgz" && \
+      tar xzf "$T/uv.tgz" -C "$T" uv-$A64-unknown-linux-$ZEST_LIBC/uv && \
+      check_elf "$T/uv-$A64-unknown-linux-$ZEST_LIBC/uv" && \
+      mv "$T/uv-$A64-unknown-linux-$ZEST_LIBC/uv" "$BIN/uv" ;;
+
     thefuck)
-      command -v uv >/dev/null 2>&1 && uv tool install thefuck --python 3.11 --force >/dev/null 2>&1 ;;
+      # thefuck é instalação de Python — depende do uv. Se o uv já está em
+      # ~/.local/bin (padrão do Zest), usa; caso contrário, baixa o uv primeiro.
+      if ! command -v uv >/dev/null 2>&1 && ! command -v "$BIN/uv" >/dev/null 2>&1; then
+        printf '   · uv não encontrado — baixando (preciso do thefuck)\n'
+        do_install uv || return 1
+      fi
+      command -v "$BIN/uv" >/dev/null 2>&1 && PATH="$BIN:$PATH" uv tool install thefuck --python 3.11 --force >/dev/null 2>&1 \
+        || { echo "❌ thefuck precisa do uv"; return 1; } ;;
 
     *) echo "❌ Ferramenta desconhecida: $1 (disponíveis: $(available | tr '\n' ' '))"; return 1 ;;
   esac
 }
 
-available() { printf '%s\n' fzf ripgrep fd bat eza delta lazygit duf jq yq direnv tldr zoxide atuin mise thefuck; }
+available() { # lê da FONTE ÚNICA (lib/tools.list) — sem hardcode aqui
+  while IFS=$'\t' read -r _nome _bin; do
+    [[ -z "$_nome" ]] && continue
+    printf '%s\n' "$_nome"
+  done <"$HERE/tools.list"
+}
 
 # ------------------------------------------------------------
 #  PREFERÊNCIA DE INSTALAÇÃO
