@@ -107,6 +107,9 @@ if [[ -f "$REPO_DIR/lib/distro.sh" ]]; then
 fi
 DEST="$HOME/.config/zest"
 ZSHRC="$HOME/.zshrc"
+# Oh My Zsh é OPCIONAL mas NÃO é o padrão: o Zest funciona sem ele. Quem
+# quiser o Omz passa --with-omz (ou --with-plugins). Sem argumento, o Zest
+# instala só o que ele precisa — o Omz é um framework à parte.
 WITH_PLUGINS=0
 WITH_OMZ=0
 WITH_TOOLS=1
@@ -114,6 +117,7 @@ for arg in "$@"; do
   case $arg in
     --with-plugins) WITH_PLUGINS=1 ;;
     --with-omz)     WITH_OMZ=1; WITH_PLUGINS=1 ;;   # instala o Oh My Zsh se faltar
+    --no-omz)       WITH_OMZ=0; WITH_PLUGINS=0 ;;   # nem plugins: Zest só
     --no-tools)     WITH_TOOLS=0 ;;                   # CI: pula as 17 ferramentas
   esac
 done
@@ -152,6 +156,35 @@ HAS_PROMPT=0
 if [[ -n "${ZSH:-}" || -n "${STARSHIP_SESSION_KEY:-}" || -d "$HOME/.oh-my-zsh" ]] \
    || ps -o comm= 2>/dev/null | grep -q powerlevel10k; then
   HAS_PROMPT=1
+fi
+
+# 0b) tema do Oh My Zsh — só se o Omz for ser instalado. O Zest não é o Omz,
+#     então o tema só interessa quem optou por --with-omz. Default: gnzh.
+ZSH_THEME="gnzh"
+if [[ $WITH_OMZ == 1 ]]; then
+  echo ""
+  echo "🎨 Tema do Oh My Zsh"
+  echo "   O Zest instala o Omz e pergunta qual tema usar. Default: gnzh."
+  echo ""
+  echo "   Temas comuns:"
+  echo "     1) gnzh                  ╭─usuário ~/dir ❯  (recomendado, default)"
+  echo "     2) agnoster             ~ ❯  (compacto, sem unicode)"
+  echo "     3) powerlevel10k        ~ ❯  (muito customizável)"
+  echo "     4) spaceship            ~ ❯  (moderno)"
+  echo "     5) robbyrussell         ~/dir %  (padrão do Omz)"
+  echo "     6) outro                digite o nome de qualquer tema em"
+  echo "                              https://github.com/ohmyzsh/ohmyzsh/wiki/themes"
+  if _tema=$(ask "   Qual? [1] "); then
+    case "${_tema:-1}" in
+      2) ZSH_THEME="agnoster" ;;
+      3) ZSH_THEME="powerlevel10k" ;;
+      4) ZSH_THEME="spaceship" ;;
+      5) ZSH_THEME="robbyrussell" ;;
+      6) ZSH_THEME="${_tema}" ;;
+      *) ZSH_THEME="gnzh" ;;
+    esac
+  fi
+  unset _tema
 fi
 
 if [[ -z "${ZEST_PROMPT:-}" && ! -f "$DEST/prompt" && $HAS_PROMPT == 0 ]]; then
@@ -337,6 +370,21 @@ if [[ $WITH_OMZ == 1 && ! -d "$HOME/.oh-my-zsh" ]]; then
     echo "✓ Oh My Zsh instalado em ~/.oh-my-zsh (commit ${omz_sha:-?})"
   else
     echo "⚠️  clone do Oh My Zsh falhou — seguindo em modo standalone (plugins carregados pelo módulo 10)"
+  fi
+fi
+
+# 2b) tema do Oh My Zsh — o template nasce com ZSH_THEME="robbyrussell".
+#     O Zest pergunta qual tema na instalação (padrão: gnzh) e escreve no .zshrc.
+#     Qualquer nome da wiki do Omz é aceito: o tema é carregado pelo próprio
+#     Omz, o Zest só grava a linha certa.
+if [[ $WITH_OMZ == 1 && -f "$ZSHRC" ]]; then
+  if grep -q "^ZSH_THEME=" "$ZSHRC"; then
+    sed -i "s/^ZSH_THEME=.*/ZSH_THEME=\"$ZSH_THEME\"/" "$ZSHRC"
+    echo "✓ tema do Oh My Zsh: $ZSH_THEME"
+  elif ! grep -q "^# ZSH_THEME=" "$ZSHRC"; then
+    # template antigo: insere a linha perto do topo
+    sed -i "1a ZSH_THEME=\"$ZSH_THEME\"" "$ZSHRC"
+    echo "✓ tema do Oh My Zsh: $ZSH_THEME"
   fi
 fi
 

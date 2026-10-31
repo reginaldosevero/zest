@@ -122,19 +122,30 @@ Na primeira execução, o instalador pergunta qual prompt você quer (1-4, defau
 
 O `zest add` só baixa **ferramentas CLI** (fzf, rg, bat, eza, atuin, etc.). Oh My Zsh é um **framework de shell**, não uma ferramenta — então ele não está na lista de `zest add`. Tentar `zest add Oh My Zsh` divide o nome em palavras e diz "Ferramenta desconhecida: Oh / My / Zsh".
 
-Para ter o Oh My Zsh, use uma das opções abaixo.
+### 🧩 Oh My Zsh (opcional — não é o padrão)
 
-### 🧩 Oh My Zsh (opcional)
+O Zest funciona **sem** Oh My Zsh — os módulos são código zsh próprio. O Omz é um framework à parte: o Zest não o instala por padrão, porque o Zest é independente e funciona sem ele. Quem quiser o Omz passa `--with-omz` (ou `--with-plugins`).
 
-O Zest funciona **sem** Oh My Zsh — os módulos são código zsh próprio. Mas se você quer os themes, aliases e integrações do Omz, tem três caminhos:
+**Por que não é padrão?** O Zest é um tempero, não um reemplaço do shell. Muitos usuários já têm um prompt do jeito que querem (starship, powerlevel10k, ou o próprio Zest) e não querem o Omz pesando. O padrão é o Zest sozinho — leve, sem framework.
 
-**1) Na instalação (recomendado para quem está começando do zero)**
+**1) Na instalação (quem quer o Omz)**
 
 ```bash
 ./install.sh --with-omz
 ```
 
-O instalador detecta se o Omz já existe; se não, instala sozinho (precisa de `git`; em container root, `apt install git -y` é o jeito — sem `sudo`). Se o `git` não estiver disponível, o Omz é pulado e o Zest continua normal.
+O instalador pergunta qual tema usar. **Padrão: `gnzh`** — é o tema que dá o visual `╭─usuário ~/dir ❯`. Outros temas comuns:
+
+| Número | Tema | Aspecto |
+|---|---|---|
+| 1 | `gnzh` | `╭─usuário ~/dir ❯` (recomendado, default) |
+| 2 | `agnoster` | `~ ❯` (compacto, sem unicode) |
+| 3 | `powerlevel10k` | `~ ❯` (muito customizável) |
+| 4 | `spaceship` | `~ ❯` (moderno) |
+| 5 | `robbyrussell` | `~/dir %` (padrão do Omz) |
+| 6 | outro | digite o nome de qualquer tema em [ohmyzsh/ohmyzsh/wiki/themes](https://github.com/ohmyzsh/ohmyzsh/wiki/themes) |
+
+Temas que você pediu e que existem na wiki: `duellj`, `fino-time`, `rkj-repos`, `strug`, `wezm`, `xiong-chiamiov-plus` — basta digitar o número 6 e o nome.
 
 **2) Depois que o Zest já está instalado**
 
