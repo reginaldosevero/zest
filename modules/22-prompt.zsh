@@ -12,6 +12,11 @@
 # O estilo escolhido na instalação fica gravado em $ZEST_HOME/prompt.
 
 # _zest-prompt-estilo — o que usar hoje (zest | compact | plain | off)
+# Ordem de precedência:
+#   1. ZEST_PROMPT (exportada pelo .zshrc via `zest prompt`) — quem pediu
+#   2. $ZEST_HOME/prompt (gravado na instalação)
+#   3. PS1 pré-existente → off (respeita omz/starship/p10k)
+#   4. zsh cru → zest
 _zest-prompt-estilo() {
   local arq="${ZEST_HOME:-$HOME/.config/zest}/prompt"
   if [[ -n "${ZEST_PROMPT:-}" ]]; then

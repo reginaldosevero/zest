@@ -141,21 +141,41 @@ cmd_add() {
 }
 
 # Troca o estilo do prompt sem editar arquivo na mão.
-# Com Oh My Zsh/starship/p10k o módulo 22-prompt não sobrescreve nada, então
-# escrever no arquivo seria enganoso — avisamos em vez disso.
+#
+# Por que não recusa mais quando há Oh My Zsh/starship/p10k:
+#   o módulo 22-prompt já respeita um PS1 pré-existente (nunca sobrescreve
+#   sem que a pessoa peça). O que `zest prompt compact` faz é gravar o estilo
+#   em $ZEST_HOME/prompt e exportar ZEST_PROMPT no bloco do .zshrc, então o
+#   módulo 22-prompt lê essa variável em primeiro lugar e aplica o prompt do
+#   Zest. Quem não quer mais o Zest no prompt basta `zest prompt off`.
 cmd_prompt() {
-  local atual
+  local atual estilo
   atual=$(cat "$ZEST_HOME/prompt" 2>/dev/null || echo off)
   case "${1:-}" in
     zest|compact|plain|off)
-      if [[ -d "$HOME/.oh-my-zsh" || -n "${STARSHIP_SESSION_KEY:-}" ]]; then
-        echo "Você já tem outro prompt (Oh My Zsh/starship) — o Zest não sobrescreve."
-        echo "Para usar o prompt do Zest, desative o outro primeiro."
-        return 0
-      fi
+      estilo="$1"
       mkdir -p "$ZEST_HOME"
-      echo "$1" > "$ZEST_HOME/prompt"
-      echo "✓ prompt = $1 — rode 'exec zsh' (ou abra um terminal novo) para ver"
+      echo "$estilo" > "$ZEST_HOME/prompt"
+      # ZEST_PROMPT no .zshrc: o módulo 22-prompt lê essa variável antes de
+      # anything else, então o estilo é respeitado mesmo com omz/starship.
+      # Três casos: variável já existe (atualiza), bloco zest existe (insere),
+      # ou não há nada (cria um bloco novo).
+      if [[ -f "$HOME/.zshrc" ]]; then
+        if grep -q "^export ZEST_PROMPT=" "$HOME/.zshrc"; then
+          sed -i "s/^export ZEST_PROMPT=.*/export ZEST_PROMPT=$estilo/" "$HOME/.zshrc"
+        elif grep -q ">>> zest >>>" "$HOME/.zshrc"; then
+          sed -i "/^# >>> zest >>>$/a export ZEST_PROMPT=$estilo" "$HOME/.zshrc"
+        else
+          cat >> "$HOME/.zshrc" <<'ZEOF'
+
+# >>> zest >>>
+export ZEST_PROMPT=ZPLACEHOLDER
+# <<< zest <<<
+ZEOF
+          sed -i "s/ZPLACEHOLDER/$estilo/" "$HOME/.zshrc"
+        fi
+      fi
+      echo "✓ prompt = $estilo — rode 'exec zsh' (ou abra um terminal novo) para ver"
       ;;
     ""|status)
       echo "prompt atual: $atual"
