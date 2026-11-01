@@ -2,6 +2,22 @@
 
 ## Não lançado (desde 0.3.3)
 
+- **`source ~/.zshrc` dentro do bash quebrava em vez de avisar.** É o erro mais
+  comum em container, onde o terminal abre em bash — e o README mandava justo
+  isso. O `.zshrc` é arquivo do zsh: o glob `modules/*.zsh(N)` é sintaxe
+  inválida em bash, e o resultado é
+
+  ```
+  syntax error near unexpected token `('
+  ```
+
+  O bloco do Zest agora começa com uma guarda que detecta o bash, avisa
+  “rode `exec zsh`” e sai limpo antes de o bash ver o glob. Quem tem o bloco
+  antigo ganha a guarda ao rodar o instalador de novo, sem nada tocado fora das
+  marcações (conteúdo antes e depois fica intacto, `zsh -n` confere antes de
+  gravar, e bloco sem o marcador de fechamento é poupado em vez de adivinhado).
+  O README passa a mandar `exec zsh`. Nova biblioteca `lib/zshrc.sh`, três
+  guardas no `tests/smoke.sh`.
 - **`stocks TICKER` mostra o dia inteiro, não só o preço.** O retorno do Yahoo já
   vinha trazendo variação, mín/máx do dia, mín/máx de 12 meses e volume — e o
   `stocks` imprimia só uma linha e jogava o resto fora. Agora:

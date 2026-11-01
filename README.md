@@ -180,10 +180,16 @@ sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/too
 Depois:
 
 ```bash
-source ~/.zshrc
+exec zsh                      # troca para o zsh — é aqui que o Zest liga
 zest doctor                 # diagnostica o ambiente
 zest self-update            # atualiza o Zest para a última release (sem root)
 ```
+
+> **`exec zsh`, não `source ~/.zshrc`.** O `.zshrc` é arquivo do zsh: fonteiado
+> dentro do bash ele quebra (`syntax error near unexpected token (` no glob
+> `*.zsh(N)`). Acontece muito em container, onde o terminal abre em bash. O
+> próprio bloco do Zest avisa e manda rodar `exec zsh` — mas feche e reabra o
+> terminal, ou rode `exec zsh`, que é o caminho certo.
 
 > **`zest self-update`** — quando sair uma nova versão, é só rodar esse comando. Ele compara a versão local com a última tag do GitHub, baixa o tarball e atualiza módulos, lib e bin em `~/.config/zest` e `~/.local/bin` — sem root, sem tocar no `.zshrc`. Se já estiver na última, diz só "já está na versão mais recente" e não faz nada.
 

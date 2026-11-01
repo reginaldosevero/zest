@@ -425,5 +425,63 @@ else
   FAIL=1
 fi
 
+# 25) o bloco do .zshrc resiste a 'source ~/.zshrc' dentro de BASH — o erro mais
+#     comum em container. Sem a guarda, em vez de um aviso o usuário leva:
+#       syntax error near unexpected token `('
+#     porque o glob do zsh '*.zsh(N)' é sintaxe inválida em bash. O bash lê e
+#     executa um comando por vez, então a guarda com 'return' tem de vir ANTES
+#     do glob. Roda o instalador num HOME falso e fonteia o .zshrc nos dois
+#     shells: o bash volta rc=0 com o aviso, o zsh carrega os módulos.
+if command -v zsh >/dev/null 2>&1 && \
+   Z_HOME="$(mktemp -d)" && \
+   env -i HOME="$Z_HOME" PATH="$PATH" TERM=dumb bash install.sh --no-tools </dev/null >/dev/null 2>&1; then
+  bash -c "source '$Z_HOME/.zshrc'" >"$Z_HOME/bash.out" 2>&1
+  Z_BASH_RC=$?
+  # HOME apontado para o HOME falso: sem isso o zsh -f leria o .zshrc real de quem testa.
+  # Conferir 'stocks' (função dos módulos) e não 'zest': o PATH vai no .zprofile,
+  # que só login shell lê — 'zsh -f -c' é não-login, e o teste é do bloco.
+  HOME="$Z_HOME" zsh -f -c "source '$Z_HOME/.zshrc'; whence -w stocks" >"$Z_HOME/zsh.out" 2>&1
+  Z_ZSH_RC=$?
+  if (( Z_BASH_RC == 0 )) && grep -q "para ativar o Zest rode" "$Z_HOME/bash.out" \
+     && ! grep -q "unexpected token" "$Z_HOME/bash.out" \
+     && (( Z_ZSH_RC == 0 )) && grep -q "stocks: function" "$Z_HOME/zsh.out"; then
+    echo "  ✓ 'source ~/.zshrc' no bash avisa em vez de dar syntax error"
+  else
+    echo "  ✗ o bloco do .zshrc não segurou o bash (rc bash=$Z_BASH_RC, rc zsh=$Z_ZSH_RC):"
+    sed 's/^/      bash| /' "$Z_HOME/bash.out" | head -4
+    sed 's/^/      zsh | /' "$Z_HOME/zsh.out" | head -4
+    FAIL=1
+  fi
+
+  # migração: bloco ANTIGO (sem guarda) no meio do arquivo, com conteúdo dos
+  # dois lados — a reescrita só pode tocar no trecho entre as marcações
+  printf 'export ZSH="$HOME/.oh-my-zsh"\n\n# >>> zest >>>\nexport ZEST_HOME="$HOME/.config/zest"\nfor m in "$ZEST_HOME"/modules/*.zsh(N); do source "$m"; done\n# <<< zest <<<\n\nalias depois="echo sim"\nexport DEPOIS=1\n' > "$Z_HOME/velho.zshrc"
+  if bash -c "source lib/zshrc.sh; zest_zshrc_ensure '$Z_HOME/velho.zshrc'" >/dev/null 2>&1 \
+     && grep -q "para ativar o Zest rode" "$Z_HOME/velho.zshrc" \
+     && grep -qF 'alias depois="echo sim"' "$Z_HOME/velho.zshrc" \
+     && grep -q 'export DEPOIS=1' "$Z_HOME/velho.zshrc" \
+     && [[ $(grep -c '>>> zest >>>' "$Z_HOME/velho.zshrc") == 1 ]] \
+     && bash -c "source '$Z_HOME/velho.zshrc'" >/dev/null 2>&1; then
+    echo "  ✓ bloco antigo migra com a guarda sem perder o que vem antes e depois"
+  else
+    echo "  ✗ migrar o bloco antigo perdeu conteúdo ou ficou sem a guarda"
+    FAIL=1
+  fi
+
+  # bloco sem o marcador de fechamento = alguém mexeu ali: não adivinha, poupa
+  printf 'x=1\n# >>> zest >>>\nexport ZEST_HOME=/x\n' > "$Z_HOME/orfao.zshrc"
+  if bash -c "source lib/zshrc.sh; zest_zshrc_ensure '$Z_HOME/orfao.zshrc'" >/dev/null 2>&1 \
+     && grep -q 'export ZEST_HOME=/x' "$Z_HOME/orfao.zshrc" \
+     && [[ ! -e "$Z_HOME/orfao.zshrc.zest-novo" ]]; then
+    echo "  ✓ bloco sem marcador de fechamento é poupado (nada de adivinhar)"
+  else
+    echo "  ✗ reescreveu um bloco que não dava para resolver com certeza"
+    FAIL=1
+  fi
+  rm -rf "$Z_HOME"
+else
+  echo "  · bloco anti-bash: pulado (falta zsh ou o instalador não rodou)"
+fi
+
 echo "════════════════════"
 (( FAIL == 0 )) && echo "✅ smoke test passou" || { echo "❌ smoke test falhou"; exit 1; }

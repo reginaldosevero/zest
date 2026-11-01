@@ -464,22 +464,16 @@ done
 [[ -d "$HOME/.oh-my-zsh" ]] && export ZSH="${ZSH:-$HOME/.oh-my-zsh}"
 zest_sweep_orphans "$ZSHRC"
 
-# 5) bloco marcado no .zshrc (nunca duplica)
-if grep -q ">>> zest >>>" "$ZSHRC" 2>/dev/null; then
-  echo "✓ .zshrc já carrega o Zest (nada duplicado)"
-else
-  cat >> "$ZSHRC" <<'EOF'
-
-# >>> zest >>>
-# Zest 🌶️ — o tempero do seu terminal (open source, MIT)
-# Remoção limpa: rode o uninstall.sh do repositório
-export ZEST_HOME="$HOME/.config/zest"
-for _zmod in "$ZEST_HOME"/modules/*.zsh(N); do source "$_zmod"; done
-unset _zmod
-# <<< zest <<<
-EOF
-  echo "✓ bloco acrescentado ao final do $ZSHRC (nada do que já existia foi alterado)"
-fi
+# 5) bloco marcado no .zshrc (nunca duplica). Biblioteca em lib/zshrc.sh: o
+#    bloco carrega uma guarda anti-bash, porque 'source ~/.zshrc' dentro de
+#    bash — o erro mais comum em container — sem ela termina em
+#    "syntax error near unexpected token (". Quem já tem o bloco antigo ganha a
+#    guarda na próxima execução do instalador, sem nada tocado fora das
+#    marcações. Teste no smoke, item 25.
+for _z in "$REPO_DIR/lib/zshrc.sh" "${ZEST_HOME:-$HOME/.config/zest}/lib/zshrc.sh"; do
+  [[ -f "$_z" ]] && source "$_z" && break
+done
+zest_zshrc_ensure "$ZSHRC"
 
 # 6) zsh-autosuggestions — SEMPRE é instalado (sugestões do histórico são
 #    essenciais). Os outros plugins só com --with-plugins.
